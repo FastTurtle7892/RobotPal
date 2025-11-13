@@ -44,7 +44,7 @@ jobs:
         with:
           name: RobotPalWeb
           path: |
-            ./build/RobotPal/RobotPal.html
-            ./build/RobotPal/RobotPal.js
-            ./build/RobotPal/RobotPal.wasm
+            ./build/RobotPal/*.html
+            ./build/RobotPal/*.js
+            ./build/RobotPal/*.wasm
           retention-days: 1

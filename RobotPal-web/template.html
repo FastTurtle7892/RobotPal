@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>RobotPal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&amp;display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --text-color: #212529; /* Dark text for light background */
+        --primary-color: #007bff;
+        --border-color: #dee2e6; /* Lighter border */
+        --canvas-background: #000;
+        --input-background: #f8f9fa; /* Light background for inputs */
+        --monospace-font: 'Lucida Console', Monaco, monospace;
+        --sans-serif-font: 'Inter', sans-serif;
+      }
+
+      body {
+        font-family: var(--sans-serif-font);
+        margin: 0;
+        padding: 0;
+        background-color: transparent;
+        color: var(--text-color);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        box-sizing: border-box;
+        font-size: 16px;
+        line-height: 1.6;
+      }
+
+      .emscripten-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        width: 100%;
+        max-width: 900px;
+      }
+
+      .emscripten_border {
+        border: 1px solid var(--border-color);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Softer shadow */
+      }
+
+      canvas.emscripten {
+        border: 0;
+        background-color: var(--canvas-background);
+      }
+
+      .spinner {
+        height: 40px;
+        width: 40px;
+        margin: 20px 0;
+        border: 4px solid #e9ecef; /* Light gray spinner track */
+        border-top-color: var(--primary-color);
+        border-radius: 50%;
+        animation: rotation 0.8s linear infinite;
+      }
+
+      @keyframes rotation {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      #status {
+        font-weight: 500;
+        color: var(--text-color); /* Use dark text color */
+        font-size: 1.1rem;
+      }
+
+      #progress {
+        width: 100%;
+        max-width: 300px;
+        height: 8px;
+        -webkit-appearance: none;
+        appearance: none;
+        border: none;
+        border-radius: 4px;
+        overflow: hidden;
+        background-color: #e9ecef; /* Light gray progress track */
+      }
+
+      #progress::-webkit-progress-bar {
+        background-color: #e9ecef;
+      }
+
+      #progress::-webkit-progress-value {
+        background-color: var(--primary-color);
+        transition: width 0.1s ease;
+      }
+      
+      #progress::-moz-progress-bar {
+        background-color: var(--primary-color);
+      }
+
+      #controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      
+      #controls span {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1rem;
+        color: var(--text-color); /* Use dark text color */
+      }
+
+      #controls input[type="button"] {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: var(--sans-serif-font);
+        font-weight: 500;
+        transition: background-color 0.2s;
+      }
+
+      #controls input[type="button"]:hover {
+        background-color: #0056b3;
+      }
+
+      #output {
+        width: 100%;
+        height: 150px;
+        margin-top: 1rem;
+        background-color: var(--input-background);
+        color: var(--text-color);
+        font-family: var(--monospace-font);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        outline: none;
+        padding: 0.75rem;
+        box-sizing: border-box;
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="emscripten-container">
+      <div id="status-container" style="display: flex; align-items: center; gap: 1rem;">
+        <div class="spinner" id='spinner'></div>
+        <div class="emscripten" id="status">Downloading...</div>
+      </div>
+
+      <div class="emscripten">
+        <progress value="0" max="100" id="progress" hidden></progress>
+      </div>
+
+      <div class="emscripten_border">
+        <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+      </div>
+
+      <span id='controls'>
+        <span><input type="checkbox" id="resize">Resize canvas</span>
+        <span><input type="checkbox" id="pointerLock" checked>Lock/hide mouse pointer</span>
+        <span><input type="button" value="Fullscreen" onclick="Module.requestFullscreen(document.getElementById('pointerLock').checked, document.getElementById('resize').checked)"></span>
+        <span><input type="button" value="Toggle Console" onclick="toggleConsole()"></span>
+      </span>
+
+      <textarea id="output" rows="8"></textarea>
+    </div>
+
+    <script type='text/javascript'>
+      var statusElement = document.getElementById('status');
+      var progressElement = document.getElementById('progress');
+      var spinnerElement = document.getElementById('spinner');
+      var canvasElement = document.getElementById('canvas');
+      var outputElement = document.getElementById('output');
+      if (outputElement) outputElement.value = ''; // clear browser cache
+
+      function toggleConsole() {
+        if (outputElement.style.display === 'none') {
+          outputElement.style.display = 'block';
+        } else {
+          outputElement.style.display = 'none';
+        }
+      }
+
+      // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+      // application robust, you may want to override this behavior before shipping!
+      // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
+      canvasElement.addEventListener('webglcontextlost', (e) => {
+        alert('WebGL context lost. You will need to reload the page.');
+        e.preventDefault();
+      }, false);
+
+      var Module = {
+        print(...args) {
+          console.log(...args);
+          // These replacements are necessary if you render to raw HTML
+          //text = text.replace(/&/g, "&amp;");
+          //text = text.replace(/</g, "&lt;");
+          //text = text.replace(/>/g, "&gt;");
+          //text = text.replace('\n', '<br>', 'g');
+          if (outputElement) {
+            var text = args.join(' ');
+            outputElement.value += text + "\n";
+            outputElement.scrollTop = outputElement.scrollHeight; // focus on bottom
+          }
+        },
+        canvas: canvasElement,
+        setStatus(text) {
+          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+          if (text === Module.setStatus.last.text) return;
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var now = Date.now();
+          // if this is a progress update, skip it if too soon
+          if (m && now - Module.setStatus.last.time < 30) return;
+          Module.setStatus.last.time = now;
+          Module.setStatus.last.text = text;
+          if (m) {
+            text = m[1];
+            progressElement.value = parseInt(m[2])*100;
+            progressElement.max = parseInt(m[4])*100;
+            progressElement.hidden = false;
+            spinnerElement.hidden = false;
+          } else {
+            progressElement.value = null;
+            progressElement.max = null;
+            progressElement.hidden = true;
+            if (!text) spinnerElement.style.display = 'none';
+          }
+          statusElement.innerHTML = text;
+        },
+        totalDependencies: 0,
+        monitorRunDependencies(left) {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        }
+      };
+      Module.setStatus('Downloading...');
+      window.onerror = (event) => {
+        // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
+        Module.setStatus('Exception thrown, see JavaScript console');
+        spinnerElement.style.display = 'none';
+        Module.setStatus = (text) => {
+          if (text) console.error('[post-exception status] ' + text);
+        };
+      };
+    </script>
+    <script async type="text/javascript" src="RobotPal.js"></script>
+  </body>
+</html>

@@ -32,6 +32,13 @@ endif()
 
 # 플랫폼에 따라 링크 라이브러리를 다르게 설정합니다.
 if(EMSCRIPTEN)
+    add_custom_command(TARGET RobotPal
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+            "${CMAKE_SOURCE_DIR}/RobotPal-web/template.html"
+            "${CMAKE_CURRENT_BINARY_DIR}/index.html"
+    )
+
     # Emscripten의 경우 플랫폼별 GL 라이브러리 없이 링크합니다.
     target_link_libraries(imgui PRIVATE glfw)
     target_link_libraries(RobotPal PRIVATE glfw imgui)
