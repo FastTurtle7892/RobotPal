@@ -12,6 +12,7 @@ permissions:
   pages: write
   id-token: write
   actions: read
+
 jobs:
   deploy:
     environment:
@@ -29,8 +30,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: RobotPalWeb
-          path: . 
+          path: ./RobotPalWeb
+          github-token: ${{ secrets.ROBOTPAL_PAT }}
           run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Display structure of downloaded files
+        run: ls -R ./RobotPalWeb
 
       - name: Deploy to GitHub Pages
         id: deployment
