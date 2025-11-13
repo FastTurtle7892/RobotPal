@@ -1,0 +1,52 @@
+name: "emscripten build"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup emsdk
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.19
+          actions-cache-folder: 'emsdk-cache'
+
+      - name: Verify
+        run: emcc -v
+      
+      # Option 2: specify 'latest' or 'latestrc' in the input version arguments:
+      - name: Get latest CMake
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: latest      # <--= optional, use the latest release candidate (notice the 'rc' suffix).
+          #ninjaVersion: latest        # <--= optional, use the latest release (non candidate).
+      
+      # 3. 레포지토리 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4 # v4로 버전 업데이트
+
+      # 4. CMake 빌드 디렉토리 생성 및 emcmake로 설정
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          # emcmake를 사용하여 CMake 실행 (CMakeLists.txt가 루트에 있다고 가정)
+          emcmake cmake ..
+
+      # 5. Make를 사용하여 프로젝트 빌드
+      - name: Build project
+        run: |
+          cd build
+          emmake make
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-pages
+          path: build # Emscripten 빌드 결과물이 있는 폴더
+          retention-days: 1
