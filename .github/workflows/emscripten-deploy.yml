@@ -11,7 +11,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
-
+  actions: read
 jobs:
   deploy:
     environment:
@@ -28,7 +28,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          #name: RobotPalWeb
+          name: RobotPalWeb
           path: . 
           run-id: ${{ github.event.workflow_run.id }}
 
