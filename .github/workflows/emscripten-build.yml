@@ -50,7 +50,7 @@ jobs:
           name: RobotPalWeb
           working-directory: build/RobotPal
           path: |
-            ./RobotPal.html
-            ./RobotPal.js
-            ./RobotPal.wasm
+            ./build/RobotPal/RobotPal.html
+            ./build/RobotPal/RobotPal.js
+            ./build/RobotPal/RobotPal.wasm
           retention-days: 1
