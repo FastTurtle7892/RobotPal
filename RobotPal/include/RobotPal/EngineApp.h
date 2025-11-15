@@ -9,6 +9,7 @@ public:
 private:
     void Init();
     void MainLoop();
+    void MainLoopIter();
     void Shutdown();
     std::shared_ptr<Window> m_Window;
 };
