@@ -23,29 +23,16 @@ add_library(imgui STATIC
 
 target_include_directories(imgui PUBLIC ${imgui_external_SOURCE_DIR} ${imgui_external_SOURCE_DIR}/backends/)
 
-
-# --- ImPlot ---
-FetchContent_Declare(
-    implot
-    GIT_REPOSITORY https://github.com/epezent/implot.git
-    # ImGui 1.92.4와 호환되는 master 브랜치를 사용합니다.
-    GIT_TAG master     
-    GIT_SHALLOW True
+file(GLOB_RECURSE ROBOTPAL_SOURCES 
+    CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/RobotPal/src/**.cpp"
 )
-FetchContent_MakeAvailable(implot)
+add_executable(RobotPal ${ROBOTPAL_SOURCES})
 
-add_library(implot STATIC
-    ${implot_SOURCE_DIR}/implot.cpp
-    ${implot_SOURCE_DIR}/implot_items.cpp
+
+target_include_directories(RobotPal PUBLIC
+   ${CMAKE_SOURCE_DIR}/RobotPal/include
 )
-target_include_directories(implot PUBLIC
-    ${implot_SOURCE_DIR}
-)
-
-target_link_libraries(implot PUBLIC imgui)
-
-# 이 프로젝트의 실행 파일에 소스를 추가합니다.
-add_executable (RobotPal "main.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET RobotPal PROPERTY CXX_STANDARD 20)
@@ -62,7 +49,7 @@ if(EMSCRIPTEN)
 
     # Emscripten의 경우 플랫폼별 GL 라이브러리 없이 링크합니다.
     target_link_libraries(imgui PRIVATE glfw)
-    target_link_libraries(RobotPal PRIVATE glfw imgui implot)
+    target_link_libraries(RobotPal PRIVATE glfw imgui)
 
     # Emscripten 관련 속성 및 링크 플래그를 설정합니다.
     set_target_properties(RobotPal PROPERTIES SUFFIX ".html")
@@ -91,7 +78,7 @@ else()
     # "opengl32" 대신 "OpenGL::GL" 사용
     # (참고: 네이티브 빌드 시 glfw 타겟은 Linux에서 X11 등을 자동으로 찾아 링크합니다)
     target_link_libraries(imgui PRIVATE glfw OpenGL::GL)
-    target_link_libraries(RobotPal PRIVATE glfw OpenGL::GL imgui implot)
+    target_link_libraries(RobotPal PRIVATE glfw OpenGL::GL imgui)
 
     # 6. Linux 전용 X11 라이브러리 처리
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
