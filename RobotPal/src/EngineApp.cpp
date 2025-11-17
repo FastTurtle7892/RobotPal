@@ -8,6 +8,8 @@
 #include "imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
 #include <glad/gles2.h>
+
+#include "RobotPal/VertexArray.h"
 #include "RobotPal/Buffer.h"
 void EngineApp::Run()
 {
@@ -29,6 +31,7 @@ void EngineApp::MainLoop()
     bool test=true;
     if(test)
     {
+        auto vertexArray=VertexArray::Create();
 
         float vertices[] = {
             -0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f,
@@ -43,6 +46,9 @@ void EngineApp::MainLoop()
         };
         vertexBuffer->SetLayout(layout);
 
+
+        vertexArray->AddVertexBuffer(vertexBuffer);
+        vertexArray->Bind();
     }
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
