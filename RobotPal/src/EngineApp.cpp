@@ -31,6 +31,9 @@ void EngineApp::Init()
     m_Window=std::make_unique<Window>(1280, 720, "RobotPal");
     m_Window->Init();
     ImGuiManager::Get().Init(m_Window->GetNativeWindow());
+    #ifdef __EMSCRIPTEN__  
+        cout<<"__EMSCRIPTEN__ Mode\n";
+    #endif
 }
 
 void EngineApp::MainLoop()
