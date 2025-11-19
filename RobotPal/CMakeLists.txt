@@ -114,6 +114,10 @@ if(EMSCRIPTEN)
     target_link_options(RobotPal PRIVATE
         "SHELL:--preload-file ${ASSET_DIR}@/Assets"
     )
+
+    target_link_options(RobotPal PRIVATE
+        "SHELL:-s STACK_SIZE=8388608"
+    )
 else()
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
