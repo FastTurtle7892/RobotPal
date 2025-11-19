@@ -46,6 +46,22 @@ set(TINYGLTF_INSTALL OFF CACHE INTERNAL "")
 FetchContent_MakeAvailable(tinygltf)
 
 
+set(FLECS_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(FLECS_PIC ON CACHE BOOL "" FORCE)          # Position Independent Code
+set(FLECS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(FLECS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(FLECS_APP OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    flecs
+    GIT_REPOSITORY https://github.com/SanderMertens/flecs.git
+    GIT_TAG        v4.1.2
+)
+
+FetchContent_MakeAvailable(flecs)
+
+
+
 add_library(glad STATIC ${CMAKE_SOURCE_DIR}/External/glad/src/gles2.c)
 target_include_directories(glad PUBLIC ${CMAKE_SOURCE_DIR}/External/glad/include)
 
@@ -65,9 +81,10 @@ target_include_directories(RobotPal PUBLIC
 target_link_libraries(RobotPal PRIVATE glm::glm)
 target_link_libraries(RobotPal PRIVATE glad)
 target_link_libraries(RobotPal PRIVATE tinygltf)
+target_link_libraries(RobotPal PRIVATE flecs::flecs_static)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET RobotPal PROPERTY CXX_STANDARD 20)
+  set_property(TARGET RobotPal PROPERTY CXX_STANDARD 17)
 endif()
 
 set(ASSET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../Assets")
