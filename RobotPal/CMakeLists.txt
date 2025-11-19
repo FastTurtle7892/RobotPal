@@ -116,7 +116,7 @@ if(EMSCRIPTEN)
     )
 
     target_link_options(RobotPal PRIVATE
-        "SHELL:-s STACK_SIZE=8388608"
+        "SHELL:-sSTACK_SIZE=8388608"
     )
 else()
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
