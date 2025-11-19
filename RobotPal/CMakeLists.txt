@@ -33,6 +33,19 @@ add_library(imgui STATIC
 target_include_directories(imgui PUBLIC ${imgui_external_SOURCE_DIR} ${imgui_external_SOURCE_DIR}/backends/)
 
 
+FetchContent_Declare(
+    tinygltf
+    GIT_REPOSITORY https://github.com/syoyo/tinygltf.git
+    GIT_TAG        v2.9.7
+)
+
+set(TINYGLTF_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+set(TINYGLTF_BUILD_TESTS OFF CACHE INTERNAL "")
+set(TINYGLTF_INSTALL OFF CACHE INTERNAL "")
+
+FetchContent_MakeAvailable(tinygltf)
+
+
 add_library(glad STATIC ${CMAKE_SOURCE_DIR}/External/glad/src/gles2.c)
 target_include_directories(glad PUBLIC ${CMAKE_SOURCE_DIR}/External/glad/include)
 
@@ -51,10 +64,14 @@ target_include_directories(RobotPal PUBLIC
 
 target_link_libraries(RobotPal PRIVATE glm::glm)
 target_link_libraries(RobotPal PRIVATE glad)
+target_link_libraries(RobotPal PRIVATE tinygltf)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET RobotPal PROPERTY CXX_STANDARD 20)
 endif()
+
+set(ASSET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../Assets")
+message(Asset Dir: ${ASSET_DIR})
 
 # 플랫폼에 따라 링크 라이브러리를 다르게 설정합니다.
 if(EMSCRIPTEN)
@@ -77,6 +94,9 @@ if(EMSCRIPTEN)
         "-sALLOW_MEMORY_GROWTH=1"
         "--use-preload-plugins" # 에셋 로딩을 위함
     )
+    target_link_options(RobotPal PRIVATE
+        "SHELL:--preload-file ${ASSET_DIR}@/Assets"
+    )
 else()
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -97,6 +117,13 @@ else()
     # (참고: 네이티브 빌드 시 glfw 타겟은 Linux에서 X11 등을 자동으로 찾아 링크합니다)
     target_link_libraries(imgui PRIVATE glfw OpenGL::GL)
     target_link_libraries(RobotPal PRIVATE glfw OpenGL::GL imgui)
+
+    add_custom_command(TARGET RobotPal POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${ASSET_DIR}
+        $<TARGET_FILE_DIR:RobotPal>/Assets
+        COMMENT "Copying Assets to output directory..."
+    )
 
     # 6. Linux 전용 X11 라이브러리 처리
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
