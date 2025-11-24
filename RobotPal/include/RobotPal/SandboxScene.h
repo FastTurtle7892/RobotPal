@@ -20,6 +20,7 @@ public:
 
 private:
     Entity m_Camera;
+    Entity m_Center;
     Entity m_Cube;
     std::shared_ptr<VertexArray> m_CubeVA;
     std::shared_ptr<Shader> m_CubeShader;

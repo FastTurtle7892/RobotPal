@@ -24,7 +24,12 @@ void SandboxScene::OnEnter()
 
     ModelLoader::LoadModel(this, "./Assets/jetank.glb");
 
+    m_Center=CreateEntity("center");
+    m_Center.SetLocalScale(glm::vec3{0.3f});
     m_Cube=CreateEntity("cube");
+    m_Center.AddChild(m_Cube);
+    m_Cube.SetLocalPosition({1.5f, 0.f, 0.f});
+    m_Cube.SetLocalScale(glm::vec3{0.3f});
 
     m_CubeColor = glm::vec4(0.2f, 0.3f, 0.8f, 1.0f);
 
@@ -150,7 +155,8 @@ void SandboxScene::OnUpdate(float dt)
 
     //model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
     //m_Cube.Get<get>().Rotation={0.f, glm::degrees((float)glfwGetTime()), 0.f};
-    m_Cube.SetLocalRotation({0.f, (float)glfwGetTime(), 0.f});
+    m_Center.SetLocalRotation({(float)glfwGetTime(), (float)glfwGetTime(), (float)glfwGetTime()});
+    
     model=m_Cube.GetHandle().get_mut<TransformMatrix, World>();
     glm::vec3 viewPos = glm::vec3(0.0f, 0.0f, 3.0f);
     view = glm::translate(glm::mat4(1.0f), -viewPos);
@@ -165,6 +171,11 @@ void SandboxScene::OnUpdate(float dt)
     m_CubeShader->SetFloat3("u_ViewPos", viewPos);
 
     m_CubeVA->Bind();
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    model = m_Center.GetHandle().get_mut<TransformMatrix, World>();
+    m_CubeShader->SetMat4("u_Model", model);
+    m_CubeShader->SetFloat4("u_Color", {1.f, 0.f ,0.f, 1.f});
     glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
