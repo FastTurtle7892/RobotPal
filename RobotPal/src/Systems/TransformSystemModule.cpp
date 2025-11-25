@@ -1,12 +1,12 @@
-#include "Robotpal/Systems/TransformSystemGroup.h"
+#include "Robotpal/Systems/TransformSystemModule.h"
 #include "RobotPal/Components/Components.h"
 #include <flecs.h>
 
-TransformSystemGroup::TransformSystemGroup()
+TransformSystemModule::TransformSystemModule()
 {
 }
 
-void TransformSystemGroup::Register(flecs::world &world)
+void TransformSystemModule::Register(flecs::world &world)
 {
     // 1. 템플릿 없이 기본 빌더 사용
     auto update_local = world.system<const Position, const Rotation, const Scale, TransformMatrix>()

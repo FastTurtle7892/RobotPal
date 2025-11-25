@@ -1,9 +1,9 @@
 #ifndef __TRANSFORMSYSTEMGROUP_H__
 #define __TRANSFORMSYSTEMGROUP_H__
-#include "RobotPal/Systems/SystemGroup.h"
-class TransformSystemGroup : public ISystemGroup {
+#include "RobotPal/Systems/ISystemModule.h"
+class TransformSystemModule : public ISystemModule {
 public:
-    TransformSystemGroup();
+    TransformSystemModule();
     void Register(flecs::world& world) override;
 };
 

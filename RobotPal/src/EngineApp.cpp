@@ -18,8 +18,8 @@
 #include "RobotPal/GlobalComponents.h"
 #include "RobotPal/SandboxScene.h"
 #include "RobotPal/Core/AssetManager.h"
-#include "RobotPal/Systems/RenderSystemGroup.h"
-#include "RobotPal/Systems/TransformSystemGroup.h"
+#include "RobotPal/Systems/RenderSystemModule.h"
+#include "RobotPal/Systems/TransformSystemModule.h"
 
 void EngineApp::Run()
 {
@@ -38,10 +38,10 @@ void EngineApp::Init()
     m_SceneManager->LoadScene<SandboxScene>();
 
     m_World.set<WindowData>({ (float)1280, (float)720});
-    static RenderSystemGroup rendersys;
+    static RenderSystemModule rendersys;
     rendersys.Register(m_World);
 
-    static TransformSystemGroup transformsys;
+    static TransformSystemModule transformsys;
     transformsys.Register(m_World);
 }
 
