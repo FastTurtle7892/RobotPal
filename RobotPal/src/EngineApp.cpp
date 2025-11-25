@@ -38,11 +38,9 @@ void EngineApp::Init()
     m_SceneManager->LoadScene<SandboxScene>();
 
     m_World.set<WindowData>({ (float)1280, (float)720});
-    static RenderSystemModule rendersys;
-    rendersys.Register(m_World);
 
-    static TransformSystemModule transformsys;
-    transformsys.Register(m_World);
+    m_World.import<RenderSystemModule>();
+    m_World.import<TransformSystemModule>();
 }
 
 void EngineApp::MainLoop()

@@ -2,11 +2,12 @@
 #include "RobotPal/Components/Components.h"
 #include <flecs.h>
 
-TransformSystemModule::TransformSystemModule()
+TransformSystemModule::TransformSystemModule(flecs::world &world)
 {
+    RegisterSystem(world);
 }
 
-void TransformSystemModule::Register(flecs::world &world)
+void TransformSystemModule::RegisterSystem(flecs::world &world)
 {
     // 1. 템플릿 없이 기본 빌더 사용
     auto update_local = world.system<const Position, const Rotation, const Scale, TransformMatrix>()

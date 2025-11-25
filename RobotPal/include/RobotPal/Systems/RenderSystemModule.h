@@ -1,11 +1,12 @@
 #ifndef __RENDERSYSTEMMODULE_H__
 #define __RENDERSYSTEMMODULE_H__
-#include "RobotPal/Systems/ISystemModule.h"
-class RenderSystemModule : public ISystemModule {
+#include <flecs.h>
+struct RenderSystemModule{
 public:
-    RenderSystemModule();
+    RenderSystemModule(flecs::world &world);
 
-    void Register(flecs::world& world) override;
+private:
+    void RegisterSystem(flecs::world& world);
 };
 
 #endif

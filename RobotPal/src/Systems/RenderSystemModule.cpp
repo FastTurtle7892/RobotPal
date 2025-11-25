@@ -1,10 +1,10 @@
 #include "RobotPal/Systems/RenderSystemModule.h"
 
-RenderSystemModule::RenderSystemModule()
+RenderSystemModule::RenderSystemModule(flecs::world &world)
 {
 }
 
-void RenderSystemModule::Register(flecs::world &world)
+void RenderSystemModule::RegisterSystem(flecs::world &world)
 {
     //todo
 }

@@ -1,10 +1,11 @@
 #ifndef __TRANSFORMSYSTEMGROUP_H__
 #define __TRANSFORMSYSTEMGROUP_H__
-#include "RobotPal/Systems/ISystemModule.h"
-class TransformSystemModule : public ISystemModule {
+#include <flecs.h>
+struct TransformSystemModule{
 public:
-    TransformSystemModule();
-    void Register(flecs::world& world) override;
+    TransformSystemModule(flecs::world &world);
+private:
+    void RegisterSystem(flecs::world& world);
 };
 
 #endif
