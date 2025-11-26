@@ -14,13 +14,13 @@ public:
 
     std::shared_ptr<Shader> GetShader(const std::string& filepath);
    
-    void AddMesh(const std::string& name, std::shared_ptr<Mesh> mesh);
-    std::shared_ptr<Mesh> GetMesh(const std::string& name);
+    void AddModel(const std::string& name, std::shared_ptr<ModelResource> model);
+    std::shared_ptr<ModelResource> GetModel(const std::string& name);
 
     void ClearData();
 private:
     std::unordered_map<std::string, flecs::entity> m_Prefabs;
-    std::unordered_map<std::string, std::shared_ptr<Mesh>> m_Meshes;
+    std::unordered_map<std::string, std::shared_ptr<ModelResource>> m_Model;
     std::unordered_map<std::string, std::shared_ptr<Shader>> m_Shaders;
 };
 

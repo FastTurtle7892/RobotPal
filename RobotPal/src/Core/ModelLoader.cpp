@@ -3,209 +3,283 @@
 #include "RobotPal/Components/Components.h"
 #include "RobotPal/Core/GraphicsTypes.h"
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <vector>
 #include <iostream>
-flecs::entity ModelLoader::LoadModel(Scene *scene, const std::string &filepath)
-{
-    using namespace std;
+bool ModelLoader::LoadModelData(const std::string& path, ModelResource& outResource) {
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;
     std::string err, warn;
 
-    bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, filepath);
-    if (!ret) {
-        return flecs::entity::null();
+    if (!loader.LoadBinaryFromFile(&model, &err, &warn, path)) return false;
+
+    // 1. 재질 파싱
+    for (const auto& mat : model.materials) {
+        MaterialData mData;
+        mData.name = mat.name;
+        // 텍스처 인덱스, 컬러 값 추출...
+        outResource.materials.push_back(mData);
     }
 
-    Entity root = scene->CreateEntity(filepath);
-    flecs::entity rootHandle = root.GetHandle();
-
-    rootHandle.add(flecs::Prefab);
-
-    const auto& gltfScene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
-    for (int nodeIdx : gltfScene.nodes) {
-        cout<<"size: " << gltfScene.nodes.size() <<"\n";
-        ProcessNode(scene, rootHandle, model, model.nodes[nodeIdx]);
+    // 2. 메쉬 파싱 (Primitive -> SubMesh 변환)
+    for (const auto& mesh : model.meshes) {
+        outResource.meshes.push_back(ProcessMesh(model, mesh));
     }
 
-    AssetManager::Get().AddPrefab(filepath, rootHandle);
-
-    return rootHandle;
-}
-
-void ModelLoader::ProcessNode(Scene *scene, flecs::entity parent, tinygltf::Model &model, tinygltf::Node &node)
-{
-    using namespace std;
-    cout<<"name: " << node.name <<"\n";
-
-    if(node.mesh>=0)
-    {
-        const tinygltf::Mesh &mesh = model.meshes[node.mesh];
-        for (size_t i = 0; i < mesh.primitives.size(); ++i) {
-            string uniqueResourceName = node.name + "_Primitive_" + to_string(i);
-            ProcessMesh(model, mesh.primitives[i], uniqueResourceName);
-        }
-    }
-
-    for (int childIndex : node.children) 
-    {
-        ProcessNode(scene, parent, model, model.nodes[childIndex]);
-    }
-}
-
-PrimitiveData ModelLoader::ProcessMesh(tinygltf::Model &model, const tinygltf::Primitive &primitive, const std::string &name)
-{
-    using namespace std;
-    cout<<"primitive: " << name <<"\n";
-
-    PrimitiveData data;
-
-    // 1. 버텍스 개수 파악 (POSITION은 무조건 존재한다고 가정)
-    const auto& posAccessor = model.accessors[primitive.attributes.at("POSITION")];
-    size_t vertexCount = posAccessor.count;
-    cout<<"primitive - vertexCount: " << vertexCount <<"\n";
+    // 3. 노드 파싱 (재귀 -> 선형 배열)
+    const auto& scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
     
-    data.vertices.assign(vertexCount, {});
+    // 루트 노드가 여러 개일 수 있으므로 가상의 루트를 만들거나, 
+    // 여기서는 첫 번째 씬의 루트들을 순회하며 처리
+    for (int nodeIdx : scene.nodes) {
+        ProcessNodeRecursive(model, model.nodes[nodeIdx], -1, outResource);
+    }
+    
+    // 루트 노드 인덱스 설정 (보통 0번이 됨)
+    if (!outResource.nodes.empty()) outResource.rootNodeIndex = 0;
+
+    return true;
+}
+
+// 리턴값: 방금 추가된 노드의 인덱스
+int ModelLoader::ProcessNodeRecursive(tinygltf::Model& model, const tinygltf::Node& gltfNode, int parentIdx, ModelResource& outResource)
+{
+    // 1. 노드 데이터 생성 및 벡터 추가
+    NodeData newNode;
+    using namespace std;
+    cout<<"Node: "<<gltfNode.name<<'\n';
+    newNode.name = gltfNode.name;
+    newNode.meshIndex = gltfNode.mesh; // 메쉬가 없으면 -1
+    newNode.parentIndex = parentIdx;
+
+    // Transform 파싱 (Matrix일 수도, TRS일 수도 있음)
+    if (gltfNode.matrix.size() == 16) {
+        // Matrix -> Decompose 필요 (glm::decompose 사용 권장)
+        // 여기서는 생략, 직접 TRS 값을 읽는다고 가정
+    } else {
+        if (gltfNode.translation.size() == 3) 
+            newNode.translation = glm::make_vec3(gltfNode.translation.data());
+        if (gltfNode.rotation.size() == 4) 
+        {
+            newNode.rotation = glm::eulerAngles(glm::make_quat(gltfNode.rotation.data()));
+        }
+        if (gltfNode.scale.size() == 3) 
+            newNode.scale = glm::make_vec3(gltfNode.scale.data());
+    }
+
+    // 벡터에 넣고 인덱스 확보 (이 시점에 size가 변하므로 주의)
+    int currentIndex = (int)outResource.nodes.size();
+    outResource.nodes.push_back(newNode);
+
+    // 2. 자식들 재귀 처리
+    for (int childGltfIdx : gltfNode.children) {
+        int childNodeIdx = ProcessNodeRecursive(model, model.nodes[childGltfIdx], currentIndex, outResource);
+        
+        // 중요: 벡터 재할당(resize)이 일어날 수 있으므로 포인터 쓰면 안됨.
+        // 방금 넣은 부모 노드에 자식 인덱스 추가
+        outResource.nodes[currentIndex].childrenIndices.push_back(childNodeIdx);
+    }
+
+    return currentIndex;
+}
+
+
+PrimitiveData ModelLoader::ExtractPrimitiveData(tinygltf::Model &model, const tinygltf::Primitive &primitive)
+{
+    using namespace std;
+    PrimitiveData data;
     data.materialIndex = primitive.material;
 
-    auto GetBufferInfo = [&](const std::string& attrName) -> std::pair<const void*, int> {
-        // 1. 속성이 존재하는지 확인
-        if (primitive.attributes.find(attrName) == primitive.attributes.end()) {
-            return { nullptr, 0 };
-        }
+    // =============================================================
+    // 1. Vertex Processing
+    // =============================================================
+    
+    // POSITION은 필수이므로 없으면 리턴
+    if (primitive.attributes.find("POSITION") == primitive.attributes.end()) {
+        cout << "ERROR: Primitive has no POSITION attribute!\n";
+        return data;
+    }
 
-        const int accessorIdx = primitive.attributes.at(attrName);
-        const auto& accessor = model.accessors[accessorIdx];
+    const auto& posAccessor = model.accessors[primitive.attributes.at("POSITION")];
+    size_t vertexCount = posAccessor.count;
+    data.vertices.resize(vertexCount); // assign 대신 resize 권장
 
-        // [중요 1] BufferView가 유효한지 체크 (-1일 수 있음!)
-        if (accessor.bufferView < 0 || accessor.bufferView >= model.bufferViews.size()) {
-            cout << "WARNING: " << attrName << " has invalid bufferView index: " << accessor.bufferView << "\n";
-            return { nullptr, 0 };
-        }
+    // 람다 함수: 버퍼 정보 가져오기 (기존 로직 유지하되 안전성 확보)
+    auto GetBufferInfo = [&](const std::string& attrName) -> std::pair<const uint8_t*, int> {
+        if (primitive.attributes.find(attrName) == primitive.attributes.end()) return { nullptr, 0 };
 
+        const auto& accessor = model.accessors[primitive.attributes.at(attrName)];
         const auto& bufferView = model.bufferViews[accessor.bufferView];
         const auto& buffer = model.buffers[bufferView.buffer];
 
-        // [중요 2] 데이터 범위 체크 (오버플로우 방지)
-        size_t totalOffset = bufferView.byteOffset + accessor.byteOffset;
-        if (totalOffset >= buffer.data.size()) {
-            cout << "ERROR: " << attrName << " data offset is out of bounds!\n";
-            return { nullptr, 0 };
-        }
-
-        // [중요 3] &buffer.data[...] 대신 .data() + offset 사용 (빈 벡터일 때 안전)
-        const void* ptr = buffer.data.data() + totalOffset;
-
-        // Stride 계산
+        const uint8_t* ptr = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
         int stride = accessor.ByteStride(bufferView);
         
-        // [중요 4] 만약 Stride가 0이 나오면(Tightly Packed), 데이터 타입 크기로 강제 설정 필요할 수 있음
-        // 하지만 tinygltf의 ByteStride는 보통 0일 때 자동 계산해줍니다. 
-        // 혹시 모르니 -1이 나오면 에러 처리.
-        if (stride < 0) {
-            cout << "ERROR: Invalid stride for " << attrName << "\n";
-            return { nullptr, 0 };
-        }
-
         return { ptr, stride };
     };
 
-    // 포인터들을 저장할 변수들
-    const float* bufferPos = nullptr;
-    const float* bufferNorm = nullptr;
-    const float* bufferTex = nullptr;
-    const float* bufferTan = nullptr;
+    // 포인터 및 정보 획득
+    const float* bufPos = nullptr; int strPos = 0;
+    const float* bufNorm = nullptr; int strNorm = 0;
+    const float* bufTex = nullptr; int strTex = 0;
+    const float* bufTan = nullptr; int strTan = 0;
     
-    // 조인트/웨이트는 데이터 타입이 다양해서(byte, short, float) void*로 받음
-    const void* bufferJoints = nullptr; 
-    const void* bufferWeights = nullptr;
+    // 애니메이션 관련
+    const uint8_t* bufJoints = nullptr; int strJoints = 0; int typeJoints = 0;
+    const uint8_t* bufWeights = nullptr; int strWeights = 0; int typeWeights = 0;
 
-    int stridePos = 0, strideNorm = 0, strideTex = 0, strideTan = 0;
-    int strideJoints = 0, strideWeights = 0;
-    int typeJoints = 0, typeWeights = 0; // 데이터 타입 저장 (GL_FLOAT, GL_UNSIGNED_SHORT 등)
+    // --- 주소 바인딩 ---
+    { auto info = GetBufferInfo("POSITION");   bufPos = (const float*)info.first; strPos = info.second; }
+    { auto info = GetBufferInfo("NORMAL");     bufNorm = (const float*)info.first; strNorm = info.second; }
+    { auto info = GetBufferInfo("TEXCOORD_0"); bufTex = (const float*)info.first; strTex = info.second; }
+    { auto info = GetBufferInfo("TANGENT");    bufTan = (const float*)info.first; strTan = info.second; }
 
-    // 각 속성 주소 획득
-    { auto info = GetBufferInfo("POSITION");   bufferPos = (const float*)info.first; stridePos = info.second; }
-    { auto info = GetBufferInfo("NORMAL");     bufferNorm = (const float*)info.first; strideNorm = info.second; }
-    { auto info = GetBufferInfo("TEXCOORD_0"); bufferTex = (const float*)info.first; strideTex = info.second; }
-    { auto info = GetBufferInfo("TANGENT");    bufferTan = (const float*)info.first; strideTan = info.second; }
-
-    // 애니메이션 속성은 타입 확인이 필요해서 별도 처리
     if (primitive.attributes.find("JOINTS_0") != primitive.attributes.end()) {
-        const auto& accessor = model.accessors[primitive.attributes.at("JOINTS_0")];
         auto info = GetBufferInfo("JOINTS_0");
-        bufferJoints = info.first;
-        strideJoints = info.second;
-        typeJoints = accessor.componentType; // 5121(ubyte) or 5123(ushort)
-    }
-    if (primitive.attributes.find("WEIGHTS_0") != primitive.attributes.end()) {
-        const auto& accessor = model.accessors[primitive.attributes.at("WEIGHTS_0")];
-        auto info = GetBufferInfo("WEIGHTS_0");
-        bufferWeights = info.first;
-        strideWeights = info.second;
-        typeWeights = accessor.componentType; // 보통 FLOAT
+        const auto& acc = model.accessors[primitive.attributes.at("JOINTS_0")];
+        bufJoints = info.first; strJoints = info.second; typeJoints = acc.componentType;
     }
 
+    if (primitive.attributes.find("WEIGHTS_0") != primitive.attributes.end()) {
+        auto info = GetBufferInfo("WEIGHTS_0");
+        const auto& acc = model.accessors[primitive.attributes.at("WEIGHTS_0")];
+        bufWeights = info.first; strWeights = info.second; typeWeights = acc.componentType;
+    }
+
+    // --- 데이터 추출 루프 ---
     for (size_t i = 0; i < vertexCount; ++i) {
         Vertex& v = data.vertices[i];
 
-        // A. Position (Vec3)
-        // (char*)로 캐스팅 후 stride만큼 이동 -> 다시 (float*)로 캐스팅 -> 값 읽기
-        // 이렇게 해야 stride가 0이든 12든 32든 정확하게 읽음
-        if (bufferPos) {
-            const float* p = (const float*)((const char*)bufferPos + i * stridePos);
+        // A. Position
+        if (bufPos) {
+            const float* p = (const float*)((const uint8_t*)bufPos + i * strPos);
             v.Position = glm::vec3(p[0], p[1], p[2]);
         }
 
-        // B. Normal (Vec3)
-        if (bufferNorm) {
-            const float* n = (const float*)((const char*)bufferNorm + i * strideNorm);
+        // B. Normal
+        if (bufNorm) {
+            const float* n = (const float*)((const uint8_t*)bufNorm + i * strNorm);
             v.Normal = glm::vec3(n[0], n[1], n[2]);
         }
 
-        // C. TexCoords (Vec2)
-        if (bufferTex) {
-            const float* t = (const float*)((const char*)bufferTex + i * strideTex);
+        // C. TexCoords
+        if (bufTex) {
+            const float* t = (const float*)((const uint8_t*)bufTex + i * strTex);
             v.TexCoords = glm::vec2(t[0], t[1]);
         }
 
-        // D. Tangent (Vec3 or Vec4)
-        if (bufferTan) {
-            const float* t = (const float*)((const char*)bufferTan + i * strideTan);
+        // D. Tangent
+        if (bufTan) {
+            const float* t = (const float*)((const uint8_t*)bufTan + i * strTan);
             v.Tangent = glm::vec3(t[0], t[1], t[2]);
+            // t[3]는 BiTangent 방향(1.0 or -1.0)인데 필요하면 저장하세요.
         }
 
-        // E. Bone IDs (주의: 데이터 타입이 다양함!)
-        if (bufferJoints) {
-            const char* ptr = (const char*)bufferJoints + i * strideJoints;
-            
-            // GLTF는 용량 최적화를 위해 뼈 ID를 unsigned byte나 short로 저장함
+        // E. Joints (뼈 인덱스)
+        if (bufJoints) {
+            const uint8_t* ptr = bufJoints + i * strJoints;
             if (typeJoints == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
                 const uint8_t* d = (const uint8_t*)ptr;
                 v.BoneIDs = glm::ivec4(d[0], d[1], d[2], d[3]);
-            } 
-            else if (typeJoints == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+            } else if (typeJoints == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
                 const uint16_t* d = (const uint16_t*)ptr;
                 v.BoneIDs = glm::ivec4(d[0], d[1], d[2], d[3]);
             }
-        } else {
-            v.BoneIDs = glm::ivec4(-1); // 뼈 없음
         }
 
-        // F. Weights (Vec4)
-        if (bufferWeights) {
-            const char* ptr = (const char*)bufferWeights + i * strideWeights;
-            
+        // F. Weights (가중치 - 정규화 처리 필수!)
+        if (bufWeights) {
+            const uint8_t* ptr = bufWeights + i * strWeights;
             if (typeWeights == TINYGLTF_COMPONENT_TYPE_FLOAT) {
                 const float* d = (const float*)ptr;
                 v.Weights = glm::vec4(d[0], d[1], d[2], d[3]);
+            } 
+            else if (typeWeights == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+                // 0~65535 값을 0.0~1.0으로 변환
+                const uint16_t* d = (const uint16_t*)ptr;
+                v.Weights = glm::vec4(d[0], d[1], d[2], d[3]) / 65535.0f;
             }
-            // 가끔 Normalized Unsigned Byte/Short로 오는 경우도 있음 (드물지만)
-            // 필요하면 추가 처리
+            else if (typeWeights == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+                // 0~255 값을 0.0~1.0으로 변환
+                const uint8_t* d = (const uint8_t*)ptr;
+                v.Weights = glm::vec4(d[0], d[1], d[2], d[3]) / 255.0f;
+            }
+        }
+    }
+
+    // =============================================================
+    // 2. Index Processing (새로 추가됨)
+    // =============================================================
+    if (primitive.indices >= 0) {
+        const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
+        const tinygltf::BufferView& bufferView = model.bufferViews[indexAccessor.bufferView];
+        const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
+
+        data.indices.reserve(indexAccessor.count);
+
+        const uint8_t* dataPtr = buffer.data.data() + bufferView.byteOffset + indexAccessor.byteOffset;
+        int stride = indexAccessor.ByteStride(bufferView); // 보통 인덱스는 tight packed라 stride 무시 가능하지만 안전하게
+
+        for (size_t i = 0; i < indexAccessor.count; ++i) {
+            const uint8_t* ptr = dataPtr + i * stride;
+            uint32_t index = 0;
+
+            // 인덱스 데이터 타입에 따라 분기 (unsigned byte, short, int)
+            switch (indexAccessor.componentType) {
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+                    index = (uint32_t)(*ptr);
+                    break;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                    index = (uint32_t)(*(const uint16_t*)ptr);
+                    break;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                    index = *(const uint32_t*)ptr;
+                    break;
+            }
+            data.indices.push_back(index);
+        }
+    } else {
+        // 인덱스가 없는 경우(드물지만), 0, 1, 2... 순서대로 생성해야 그릴 수 있음
+        // Primitive Mode가 TRIANGLES라고 가정
+        cout << "WARNING: No Indices found. Generating sequential indices.\n";
+        for(size_t i=0; i<vertexCount; ++i) {
+            data.indices.push_back(i);
         }
     }
 
     return data;
 }
 
+MeshData ModelLoader::ProcessMesh(tinygltf::Model &model, const tinygltf::Mesh &gltfMesh) 
+{
+    MeshData newMesh;
+    using namespace std;
+    cout<<"Mesh: "<<gltfMesh.name<<'\n';
+    newMesh.name = gltfMesh.name;
 
+    // 여러 Primitive를 하나의 MeshData로 병합
+    for (const auto& primitive : gltfMesh.primitives) {
+        SubMeshInfo subInfo;
+        subInfo.indexStart = (uint32_t)newMesh.indices.size(); // 현재까지 쌓인 인덱스 개수가 시작점
+        subInfo.defaultMaterialIndex = primitive.material;
+
+        // 1. PrimitiveData 추출 (이전에 작성하신 함수 활용)
+        // 주의: 정점 데이터만 뽑아오는 helper 함수로 살짝 수정 필요
+        PrimitiveData rawData=ExtractPrimitiveData(model, primitive);
+
+        // 2. 정점 병합 (Vertex Offset 처리 필요)
+        uint32_t vertexOffset = (uint32_t)newMesh.vertices.size();
+        
+        newMesh.vertices.insert(newMesh.vertices.end(), rawData.vertices.begin(), rawData.vertices.end());
+
+        // 3. 인덱스 병합 (중요: Vertex Offset을 더해줘야 함!)
+        for (uint32_t idx : rawData.indices) {
+            newMesh.indices.push_back(idx + vertexOffset);
+        }
+
+        subInfo.indexCount = (uint32_t)rawData.indices.size();
+        newMesh.subMeshes.push_back(subInfo);
+    }
+
+    return newMesh;
+}

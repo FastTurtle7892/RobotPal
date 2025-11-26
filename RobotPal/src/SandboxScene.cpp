@@ -21,8 +21,9 @@ void SandboxScene::OnEnter()
               {
             std::cout << "화면 크기가 변경됨! " << win.width << "x" << win.height << std::endl;
             windowSize=win; });
-
-    ModelLoader::LoadModel(this, "./Assets/jetank.glb");
+            
+    ModelResource model;
+    ModelLoader::LoadModelData("./Assets/jetank.glb", model);
 
     m_Center=CreateEntity("center");
     m_Center.SetLocalScale(glm::vec3{0.3f});

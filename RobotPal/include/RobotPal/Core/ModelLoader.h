@@ -8,11 +8,13 @@
 
 class ModelLoader {
 public:
-    static flecs::entity LoadModel(Scene* scene, const std::string& filepath);
+    static bool ModelLoader::LoadModelData(const std::string& path, ModelResource& outResource);
 
 private:
-    static void ProcessNode(Scene* scene, flecs::entity parent, tinygltf::Model& model, tinygltf::Node& node);
-    static PrimitiveData ProcessMesh(tinygltf::Model& model, const tinygltf::Primitive& primitive, const std::string& name);
+    static int ModelLoader::ProcessNodeRecursive(tinygltf::Model& model, const tinygltf::Node& gltfNode, int parentIdx, ModelResource& outResource);
+
+    static PrimitiveData ExtractPrimitiveData(tinygltf::Model &model, const tinygltf::Primitive &primitive);
+    static MeshData ModelLoader::ProcessMesh(tinygltf::Model& model, const tinygltf::Mesh& gltfMesh);
 };
 
 #endif

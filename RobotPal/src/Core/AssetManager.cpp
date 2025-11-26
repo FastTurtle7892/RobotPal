@@ -1,4 +1,5 @@
 #include "RobotPal/Core/AssetManager.h"
+#include "RobotPal/Core/ModelLoader.h"
 
 AssetManager &AssetManager::Get()
 {
@@ -29,19 +30,21 @@ std::shared_ptr<Shader> AssetManager::GetShader(const std::string &filepath)
     return shader;
 }
 
-void AssetManager::AddMesh(const std::string &name, std::shared_ptr<Mesh> mesh)
+void AssetManager::AddModel(const std::string &name, std::shared_ptr<ModelResource> model)
 {
-    m_Meshes[name]=mesh;
+    m_Model[name]=model;
 }
-
-std::shared_ptr<Mesh> AssetManager::GetMesh(const std::string &name)
+std::shared_ptr<ModelResource> AssetManager::GetModel(const std::string &name)
 {
-    return m_Meshes[name];
+    if (m_Model.find(name) != m_Model.end()) return m_Model[name];
+    auto model=std::make_shared<ModelResource>();
+    ModelLoader::LoadModelData(name, *model);
+    m_Model[name] = model;
+    return model;
 }
-
 void AssetManager::ClearData()
 {
     m_Shaders.clear();
-    m_Meshes.clear();
-    m_Meshes.clear();
+    m_Model.clear();
+    m_Prefabs.clear();
 }
