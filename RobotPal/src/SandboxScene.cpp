@@ -35,7 +35,8 @@ void SandboxScene::OnEnter()
 
 void SandboxScene::OnUpdate(float dt)
 {
-
+    //auto data=camView->GetColorAttachment()->GetAsyncData();
+    
 }
 
 void SandboxScene::OnExit()
@@ -46,7 +47,7 @@ void SandboxScene::OnExit()
 void SandboxScene::OnImGuiRender()
 {
     ImGui::Begin("robotCam");
-    ImGui::Image((void*)(intptr_t)camView->GetID(), ImVec2(200, 200), ImVec2(0, 0), ImVec2(1, -1));
+    ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(200, 200), ImVec2(0, 0), ImVec2(1, -1));
     ImGui::End();
 
     // 창 이름을 전체를 아우르는 이름으로 변경하면 좋습니다.
