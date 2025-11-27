@@ -170,8 +170,8 @@ void RenderSystemModule::RegisterSystem(flecs::world &world)
 
         glm::mat4 viewMatrix = CreateViewMatrixFromWorld(cameraWorldMatrix);
         glm::vec3 viewPos = glm::vec3(cameraWorldMatrix*glm::vec4(0.f, 0.f, 0.f, 1.f));
-        std::cout<<"cam name: "<<camEnt.name()<<'\n';
-        std::cout<<"pos: "<<viewPos.x<<", "<<viewPos.y<<", "<<viewPos.z<<'\n';
+        // std::cout<<"cam name: "<<camEnt.name()<<'\n';
+        // std::cout<<"pos: "<<viewPos.x<<", "<<viewPos.y<<", "<<viewPos.z<<'\n';
 
         glm::mat4 projection = glm::perspective(glm::radians(cam.fov), aspect, cam.nearPlane, cam.farPlane);
 
