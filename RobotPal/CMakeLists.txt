@@ -76,6 +76,8 @@ FetchContent_MakeAvailable(stb_external)
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE ${stb_external_SOURCE_DIR})
 
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
+FetchContent_MakeAvailable(json)
 
 add_library(glad STATIC ${CMAKE_SOURCE_DIR}/External/glad/src/gles2.c)
 target_include_directories(glad PUBLIC ${CMAKE_SOURCE_DIR}/External/glad/include)
@@ -98,6 +100,7 @@ target_link_libraries(RobotPal PRIVATE glad)
 target_link_libraries(RobotPal PRIVATE tinygltf)
 target_link_libraries(RobotPal PRIVATE flecs::flecs_static)
 target_link_libraries(RobotPal PRIVATE stb)
+target_link_libraries(RobotPal PRIVATE nlohmann_json::nlohmann_json)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET RobotPal PROPERTY CXX_STANDARD 17)
