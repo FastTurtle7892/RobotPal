@@ -90,6 +90,10 @@ endif()
 set(ASSET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../Assets")
 message(Asset Dir: ${ASSET_DIR})
 
+
+find_package(Threads REQUIRED)
+target_link_libraries(RobotPal PRIVATE Threads::Threads)
+
 # 플랫폼에 따라 링크 라이브러리를 다르게 설정합니다.
 if(EMSCRIPTEN)
     add_custom_command(TARGET RobotPal
