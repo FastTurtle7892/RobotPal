@@ -91,9 +91,6 @@ set(ASSET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../Assets")
 message(Asset Dir: ${ASSET_DIR})
 
 
-find_package(Threads REQUIRED)
-target_link_libraries(RobotPal PRIVATE Threads::Threads)
-
 # 플랫폼에 따라 링크 라이브러리를 다르게 설정합니다.
 if(EMSCRIPTEN)
     add_custom_command(TARGET RobotPal
@@ -107,6 +104,15 @@ if(EMSCRIPTEN)
     target_link_libraries(imgui PRIVATE glfw)
     target_link_libraries(RobotPal PRIVATE glfw imgui)
 
+    # 1. 컴파일러에게 "Atomis/Shared Memory" 기능을 켜라고 지시
+    add_compile_options("-pthread")
+    add_compile_options("-sPROXY_TO_PTHREAD") # __EMSCRIPTEN_PTHREADS__ 매크로 정의 등을 위해 필요
+    
+    # 2. 링커에게 스레드 풀 및 워커 생성 코드를 포함하라고 지시
+    add_link_options("-pthread")
+    add_link_options("-sPROXY_TO_PTHREAD")
+    add_link_options("-sPTHREAD_POOL_SIZE=3") # 스레드 풀 사이즈 (적절히 조절)
+
     # Emscripten 관련 속성 및 링크 플래그를 설정합니다.
     set_target_properties(RobotPal PROPERTIES SUFFIX ".html")
     target_link_options(RobotPal PRIVATE
@@ -114,8 +120,6 @@ if(EMSCRIPTEN)
         "-sFULL_ES3=1"          # WebGL 2에 OpenGL ES 3 사용
         "-sALLOW_MEMORY_GROWTH=1"
         "--use-preload-plugins" # 에셋 로딩을 위함
-        "-sPROXY_TO_PTHREAD"
-        "-sPTHREAD_POOL_SIZE=3"
     )
     target_link_options(RobotPal PRIVATE
         "SHELL:--preload-file ${ASSET_DIR}@/Assets"
@@ -138,6 +142,9 @@ else()
     FetchContent_MakeAvailable(glfw)
 
     find_package(OpenGL REQUIRED)
+    find_package(Threads REQUIRED)
+
+    target_link_libraries(RobotPal PRIVATE Threads::Threads)
 
     # 3. 라이브러리 링크
     # "opengl32" 대신 "OpenGL::GL" 사용
