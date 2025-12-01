@@ -33,6 +33,18 @@ add_library(imgui STATIC
 
 target_include_directories(imgui PUBLIC ${imgui_external_SOURCE_DIR} ${imgui_external_SOURCE_DIR}/backends/)
 
+set(DRACO_TESTS OFF CACHE BOOL "" FORCE)           # 테스트 코드 빌드 안 함
+set(DRACO_JS_GLUE OFF CACHE BOOL "" FORCE)         # 자바스크립트 바인딩 안 함
+set(DRACO_WASM OFF CACHE BOOL "" FORCE)            # WebAssembly 빌드 안 함
+set(DRACO_TRANSCODER_SUPPORTED OFF CACHE BOOL "" FORCE) # 트랜스 코더(변환기) 필요 없으면 OFF
+set(DRACO_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    draco
+    GIT_REPOSITORY https://github.com/google/draco.git
+    GIT_TAG        1.5.7
+    GIT_SHALLOW 1
+)
+FetchContent_MakeAvailable(draco)
 
 FetchContent_Declare(
     tinygltf
@@ -97,10 +109,13 @@ target_include_directories(RobotPal PUBLIC
 
 target_link_libraries(RobotPal PRIVATE glm::glm)
 target_link_libraries(RobotPal PRIVATE glad)
+target_link_libraries(RobotPal PUBLIC draco::draco)
+target_include_directories(RobotPal PUBLIC "${CMAKE_BINARY_DIR}" ${draco_SOURCE_DIR}/src)
 target_link_libraries(RobotPal PRIVATE tinygltf)
 target_link_libraries(RobotPal PRIVATE flecs::flecs_static)
 target_link_libraries(RobotPal PRIVATE stb)
 target_link_libraries(RobotPal PRIVATE nlohmann_json::nlohmann_json)
+
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET RobotPal PROPERTY CXX_STANDARD 17)
