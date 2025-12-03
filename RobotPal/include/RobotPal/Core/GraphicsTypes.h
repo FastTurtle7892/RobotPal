@@ -42,7 +42,8 @@ struct MaterialData {
     ResourceID uniqueID;
     std::string name;
     glm::vec4 baseColorFactor = glm::vec4(1.0f);
-
+    float metallicFactor=0.f;
+    float roughnessFactor=0.5f;
     // ResourceID baseColorTexture=0;          // 알베도 (RGB) + 알파 (A)
     // ResourceID metallicRoughnessTexture=0;  // 메탈릭(B) + 거칠기(G) (glTF 표준)
     // ResourceID normalTexture=0;             // 노멀 맵

@@ -26,6 +26,15 @@ bool ModelLoader::LoadModelData(const std::string &path, ModelResource &outResou
             auto& d=mat.pbrMetallicRoughness.baseColorFactor;
             mData.baseColorFactor=glm::vec4(d[0], d[1], d[2], d[3]);
         }
+
+        {
+            mData.metallicFactor=(float)mat.pbrMetallicRoughness.metallicFactor;
+        }
+
+        {
+            mData.roughnessFactor=(float)mat.pbrMetallicRoughness.roughnessFactor;
+        }
+        
         outResource.materials.push_back(mData);
     }
 

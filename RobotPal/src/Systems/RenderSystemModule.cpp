@@ -261,8 +261,8 @@ void RenderSystemModule::RegisterSystem(flecs::world &world)
                         // PBR 재질 속성 전송
                         // glTF 로더가 파싱한 값들 (없으면 기본값 사용)
                         pbrShader->SetFloat3("u_Albedo", glm::vec3(mat->baseColorFactor)); 
-                        pbrShader->SetFloat("u_Metallic", 1.0f);
-                        pbrShader->SetFloat("u_Roughness", 1.0f);
+                        pbrShader->SetFloat("u_Metallic", mat->metallicFactor);
+                        pbrShader->SetFloat("u_Roughness", mat->roughnessFactor);
                         pbrShader->SetFloat("u_AO", 1.0f); // AO 맵이 없다면 기본 1.0
                     } 
                     else 
