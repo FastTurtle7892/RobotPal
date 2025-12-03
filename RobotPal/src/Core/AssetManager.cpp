@@ -13,7 +13,7 @@ AssetManager &AssetManager::Get()
 
 ResourceID AssetManager::LoadTextureHDR(const std::string &path)
 {
-    ResourceID id=GetID(path);
+    ResourceID id(path);
     if (m_TextureHDR.find(id) != m_TextureHDR.end()) return id;
 
     int width, height, nrComponents;
@@ -35,7 +35,7 @@ ResourceID AssetManager::LoadTextureHDR(const std::string &path)
 
 ResourceID AssetManager::AddRuntimeTextureHDR(std::shared_ptr<Texture> texture, const std::string &name)
 {
-    ResourceID id = GetID(name);
+    ResourceID id(name);
     m_TextureHDR[id] = texture;
     return id;
 }
@@ -92,7 +92,7 @@ std::shared_ptr<ModelResource> AssetManager::GetModel(const std::string &name)
         // 고유 ID 생성 (모델명/재질명 조합 추천)
         std::string uniqueIDStr = name + "/Materials/" + matName;
 
-        ResourceID id = GetID(uniqueIDStr);
+        ResourceID id(uniqueIDStr);
         mat.uniqueID = id;
         m_Material[id]=&mat;
 
@@ -117,7 +117,7 @@ std::shared_ptr<ModelResource> AssetManager::GetModel(const std::string &name)
         std::string uniqueIDStr = name + "/" + subName;
         
         // ID 발급
-        ResourceID id = GetID(uniqueIDStr);
+        ResourceID id(uniqueIDStr);
 
         // 데이터에 ID 부착
         mesh.uniqueID = id; 
@@ -149,15 +149,15 @@ std::shared_ptr<ModelResource> AssetManager::GetModel(const std::string &name)
     return model;
 }
 
-std::shared_ptr<Texture> AssetManager::GetTextureHDR(int id)
+std::shared_ptr<Texture> AssetManager::GetTextureHDR(ResourceID id)
 {
     return m_TextureHDR[id];
 }
-const MaterialData *AssetManager::GetMaterial(int id)
+const MaterialData *AssetManager::GetMaterial(ResourceID id)
 {
     return m_Material[id];
 }
-const MeshData *AssetManager::GetMesh(int id)
+const MeshData *AssetManager::GetMesh(ResourceID id)
 {
     return m_Mesh[id];
 }
