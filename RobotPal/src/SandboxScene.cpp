@@ -80,6 +80,7 @@ void SandboxScene::OnUpdate(float dt)
                     int channels = (texture->GetFormat() == TextureFormat::RGBA8) ? 4 : 3;
                     #endif
                     m_StreamingManager->SendFrame(pixel_data, texture->GetWidth(), texture->GetHeight(), channels);
+                    // m_StreamingManager->SendFrame(pixel_data, texture->GetWidth(), texture->GetHeight(), 3);
                 }
             }
         });
