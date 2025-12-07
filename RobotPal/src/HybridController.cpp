@@ -34,7 +34,7 @@ bool HybridController::Init()
 void HybridController::Move(const float& v, const float& w)
 {
     // 양쪽 모두에게 명령 전달
-    std::cout << ">>> [Hybrid] Move Command - v: " << v << ", w: " << w << std::endl;
+    // std::cout << ">>> [Hybrid] Move Command - v: " << v << ", w: " << w << std::endl;
     m_Sim->Move(v, w);  // 화면상 로봇 움직임 예측
     m_Real->Move(v, w); // 실제 로봇에게 패킷 전송
 }

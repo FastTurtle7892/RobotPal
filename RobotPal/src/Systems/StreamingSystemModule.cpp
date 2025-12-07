@@ -12,7 +12,7 @@ StreamingSystemModule::StreamingSystemModule(flecs::world& world)
 
     netEngine=handle.instance;
 
-    if(!networkEngineFound)
+    if(!netEngine)
     {
         std::cout<<"check module init order - network engine was not started\n";
     }
@@ -49,41 +49,46 @@ static void write_func(void* ctx, void* data, int size) {
 void StreamingSystemModule::RegisterSystem(flecs::world& world)
 {
     world.system<const Camera, const RenderTarget, const VideoSender>()
-    .kind(flecs::OnStore)
-    .each([&](flecs::entity entity, const Camera &/*cam*/, const RenderTarget &renderTarget, const VideoSender& videoCmp)
-    {   
+    .kind(flecs::PostFrame) // [핵심] 렌더링(OnStore)이 끝난 직후 실행
+    .multi_threaded(false)
+    .each([&](flecs::entity entity, const Camera &cam, const RenderTarget &renderTarget, const VideoSender& videoCmp)
+    {
+        auto fbo=renderTarget.fbo;
+        auto tex=fbo->GetColorAttachment();
+
         uint64_t currentFrame = world.get_info()->frame_count_total;
-        auto data=renderTarget.fbo->GetColorAttachment()->GetAsyncData(currentFrame);
+        auto data=tex->GetAsyncData(currentFrame);
         if (!data.empty())
         {
-            auto width = renderTarget.fbo->GetWidth();
-            auto height = renderTarget.fbo->GetHeight();
-            // The texture format is RGBA, so 3 channels.
-            //m_StreamingManager->SendFrame({data, width, height, 3});
-            {
-                WriteContext ctx;
-                ctx.buffer.reserve(width * height);
+            auto colorTex = renderTarget.fbo->GetColorAttachment();
+            auto width = colorTex->GetWidth();
+            auto height = colorTex->GetHeight();
+            auto format = colorTex->GetFormat();
 
-                int ok = stbi_write_jpg_to_func(
-                    write_func, &ctx,
-                    width, height, 3, //웹소켓이랑 형식 맞추세요
-                    data.data(), 85
-                    
-                );
+            int components = 0;
+            if (format == TextureFormat::RGB8)
+                components = 3;
+            else if (format == TextureFormat::RGBA8)
+                components = 4;
+            else
+                return; // 포맷 지원 안함
+            
+            WriteContext ctx;
+            ctx.buffer.reserve(width * height*3);
 
-                if (!ok || ctx.buffer.empty()) return;
-
-                // 길이 헤더(4바이트) + JPEG 데이터
-                std::vector<uint8_t> packet;
-
-//                OPENCV RGB BGR 맞아 그거떄문임// 이거 그럼 그냥 서버에서 해도됨? ㅇㅋ?
-                uint32_t size_be = static_cast<uint32_t>(ctx.buffer.size());
-                const uint8_t* size_ptr = reinterpret_cast<const uint8_t*>(&size_be);
-
-                packet.insert(packet.end(), size_ptr, size_ptr + 4);
-                packet.insert(packet.end(), ctx.buffer.begin(), ctx.buffer.end());
-                netEngine->SendPacket(packet);
-            }
+            int ok = stbi_write_jpg_to_func(
+                write_func, &ctx,
+                width, height, components,
+                data.data(), 85
+                
+            );
+            if (!ok || ctx.buffer.empty()) return;
+            std::vector<uint8_t> packet;
+            uint32_t len = static_cast<uint32_t>(ctx.buffer.size());
+            packet.insert(packet.end(), reinterpret_cast<uint8_t*>(&len), reinterpret_cast<uint8_t*>(&len) + 4);
+            packet.insert(packet.end(), ctx.buffer.begin(), ctx.buffer.end());
+            netEngine->SendPacket(packet);
+            
         }
     });
 }
