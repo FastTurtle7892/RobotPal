@@ -1,61 +1,76 @@
-# CMakeList.txt: CMakeProject1에 대한 CMake 프로젝트, 여기에 소스를 포함하고
-# 프로젝트 특정 논리를 정의합니다.
-#
+cmake_minimum_required(VERSION 3.8)
+project(RobotPal)
+
+# ==============================================================================
+# [핵심 수정] Emscripten 전역 설정 (반드시 맨 위에 위치)
+# 외부 라이브러리(Flecs 등)도 -pthread 옵션을 먹도록 add_compile_options 사용
+# ==============================================================================
+if(EMSCRIPTEN)
+    # 1. 환경 변수 자동 설정
+    if("$ENV{EMSCRIPTEN}" STREQUAL "")
+        message(STATUS "EMSCRIPTEN environment variable not found. Auto-detecting...")
+        get_filename_component(EMSCRIPTEN_ROOT_PATH ${CMAKE_C_COMPILER} DIRECTORY)
+        set(ENV{EMSCRIPTEN} "${EMSCRIPTEN_ROOT_PATH}")
+    endif()
+
+    # 2. 컴파일 옵션 (모든 라이브러리에 적용됨 - 중요!)
+    # 여기서 -pthread를 줘야 Flecs 등이 atomics 기능을 켜고 컴파일됩니다.
+    add_compile_options("-pthread") 
+
+    # 3. 링크 옵션 (전역 설정)
+    # 스레드 풀 사이즈, 웹소켓 등 링커에게 필요한 정보를 미리 줍니다.
+    add_link_options(
+        "-pthread"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sPTHREAD_POOL_SIZE=8"   # 스레드 풀 8개 확보
+        "-sUSE_GLFW=3"
+        "-sFULL_ES3=1"
+        "-lwebsocket.js"
+        "--use-preload-plugins"
+        "SHELL:-sSTACK_SIZE=8388608"
+    )
+endif()
+
+# ==============================================================================
+# 라이브러리 로드 (FetchContent)
+# ==============================================================================
 include(FetchContent)
 
 set(GLM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-
 FetchContent_Declare(
-	glm
-	GIT_REPOSITORY	https://github.com/g-truc/glm.git
-	GIT_TAG 	a532f5b1cf27d6a3c099437e6959cf7e398a0a67 #refs/tags/1.0.2
+    glm
+    GIT_REPOSITORY  https://github.com/g-truc/glm.git
+    GIT_TAG         a532f5b1cf27d6a3c099437e6959cf7e398a0a67 
     GIT_SHALLOW 1
 )
-
 FetchContent_MakeAvailable(glm)
 
-
 FetchContent_Declare(imgui_external
-	GIT_REPOSITORY "https://github.com/ocornut/imgui.git"
-	GIT_TAG "v1.92.4-docking"
-	GIT_SHALLOW 1
-	EXCLUDE_FROM_ALL
+    GIT_REPOSITORY "https://github.com/ocornut/imgui.git"
+    GIT_TAG "v1.92.4-docking"
+    GIT_SHALLOW 1
+    EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(imgui_external)
 
 add_library(imgui STATIC
-	${imgui_external_SOURCE_DIR}/imgui.cpp
-	${imgui_external_SOURCE_DIR}/imgui_demo.cpp
-	${imgui_external_SOURCE_DIR}/imgui_draw.cpp
-	${imgui_external_SOURCE_DIR}/imgui_tables.cpp
-	${imgui_external_SOURCE_DIR}/imgui_widgets.cpp
-	${imgui_external_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-	${imgui_external_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+    ${imgui_external_SOURCE_DIR}/imgui.cpp
+    ${imgui_external_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_external_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_external_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_external_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_external_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_external_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
-
 target_include_directories(imgui PUBLIC ${imgui_external_SOURCE_DIR} ${imgui_external_SOURCE_DIR}/backends/)
 
-
-if(EMSCRIPTEN)
-    # 환경 변수가 이미 설정되어 있지 않다면 자동 감지 시도
-    if("$ENV{EMSCRIPTEN}" STREQUAL "")
-        message(STATUS "EMSCRIPTEN environment variable not found. Auto-detecting...")
-        
-        # 현재 CMake가 사용 중인 컴파일러(emcc)의 위치를 가져옴
-        get_filename_component(EMSCRIPTEN_ROOT_PATH ${CMAKE_C_COMPILER} DIRECTORY)
-        
-        # 찾은 경로를 환경 변수 EMSCRIPTEN으로 강제 설정
-        set(ENV{EMSCRIPTEN} "${EMSCRIPTEN_ROOT_PATH}")
-        
-        message(STATUS "Auto-detected EMSCRIPTEN root: ${EMSCRIPTEN_ROOT_PATH}")
-    endif()
-endif()
-
-set(DRACO_TESTS OFF CACHE BOOL "" FORCE)           # 테스트 코드 빌드 안 함
-set(DRACO_JS_GLUE OFF CACHE BOOL "" FORCE)         # 자바스크립트 바인딩 안 함
-set(DRACO_WASM OFF CACHE BOOL "" FORCE)            # WebAssembly 빌드 안 함
-set(DRACO_TRANSCODER_SUPPORTED OFF CACHE BOOL "" FORCE) # 트랜스 코더(변환기) 필요 없으면 OFF
+# Draco 및 기타 라이브러리
+set(DRACO_TESTS OFF CACHE BOOL "" FORCE)
+set(DRACO_JS_GLUE OFF CACHE BOOL "" FORCE)
+set(DRACO_WASM OFF CACHE BOOL "" FORCE)
+set(DRACO_TRANSCODER_SUPPORTED OFF CACHE BOOL "" FORCE)
 set(DRACO_INSTALL OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
     draco
     GIT_REPOSITORY https://github.com/google/draco.git
@@ -70,16 +85,13 @@ FetchContent_Declare(
     GIT_TAG        v2.9.7
     GIT_SHALLOW 1
 )
-
 set(TINYGLTF_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 set(TINYGLTF_BUILD_TESTS OFF CACHE INTERNAL "")
 set(TINYGLTF_INSTALL OFF CACHE INTERNAL "")
-
 FetchContent_MakeAvailable(tinygltf)
 
-
 set(FLECS_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(FLECS_PIC ON CACHE BOOL "" FORCE)          # Position Independent Code
+set(FLECS_PIC ON CACHE BOOL "" FORCE)
 set(FLECS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(FLECS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(FLECS_APP OFF CACHE BOOL "" FORCE)
@@ -90,9 +102,7 @@ FetchContent_Declare(
     GIT_TAG        v4.1.2
     GIT_SHALLOW 1
 )
-
 FetchContent_MakeAvailable(flecs)
-
 
 FetchContent_Declare(
     stb_external
@@ -100,7 +110,6 @@ FetchContent_Declare(
     GIT_TAG        master
     GIT_SHALLOW 1
 )
-
 FetchContent_MakeAvailable(stb_external)
 
 add_library(stb INTERFACE)
@@ -113,6 +122,9 @@ add_library(glad STATIC ${CMAKE_SOURCE_DIR}/External/glad/src/gles2.c)
 target_include_directories(glad PUBLIC ${CMAKE_SOURCE_DIR}/External/glad/include)
 
 
+# ==============================================================================
+# 타겟 생성 (add_executable)
+# ==============================================================================
 file(GLOB_RECURSE ROBOTPAL_SOURCES 
     CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/RobotPal/src/**.cpp"
@@ -120,11 +132,16 @@ file(GLOB_RECURSE ROBOTPAL_SOURCES
 add_executable(RobotPal ${ROBOTPAL_SOURCES})
 
 target_compile_definitions(RobotPal PRIVATE GLFW_INCLUDE_NONE)
+target_include_directories(RobotPal PUBLIC ${CMAKE_SOURCE_DIR}/RobotPal/include)
 
-target_include_directories(RobotPal PUBLIC
-   ${CMAKE_SOURCE_DIR}/RobotPal/include
-)
+if (CMAKE_VERSION VERSION_GREATER 3.12)
+  set_property(TARGET RobotPal PROPERTY CXX_STANDARD 17)
+endif()
 
+set(ASSET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../Assets")
+message(Asset Dir: ${ASSET_DIR})
+
+# 공통 라이브러리 링크
 target_link_libraries(RobotPal PRIVATE glm::glm)
 target_link_libraries(RobotPal PRIVATE glad)
 target_link_libraries(RobotPal PUBLIC draco::draco)
@@ -135,16 +152,21 @@ target_link_libraries(RobotPal PRIVATE stb)
 target_link_libraries(RobotPal PRIVATE nlohmann_json::nlohmann_json)
 
 
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET RobotPal PROPERTY CXX_STANDARD 17)
-endif()
-
-set(ASSET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../Assets")
-message(Asset Dir: ${ASSET_DIR})
-
-
-# 플랫폼에 따라 링크 라이브러리를 다르게 설정합니다.
+# ==============================================================================
+# 플랫폼별 추가 설정 (Target Specific)
+# ==============================================================================
 if(EMSCRIPTEN)
+    # Emscripten 라이브러리 링크
+    target_link_libraries(imgui PRIVATE glfw)
+    target_link_libraries(RobotPal PRIVATE glfw imgui)
+
+    # 에셋 프리로딩 설정 (ASSET_DIR 변수가 필요하므로 여기서 설정)
+    target_link_options(RobotPal PRIVATE
+        "SHELL:--preload-file ${ASSET_DIR}@/Assets"
+    )
+
+    set_target_properties(RobotPal PROPERTIES SUFFIX ".html")
+
     add_custom_command(TARGET RobotPal
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
@@ -152,35 +174,8 @@ if(EMSCRIPTEN)
             "${CMAKE_CURRENT_BINARY_DIR}/index.html"
     )
 
-    # Emscripten의 경우 플랫폼별 GL 라이브러리 없이 링크합니다.
-    target_link_libraries(imgui PRIVATE glfw)
-    target_link_libraries(RobotPal PRIVATE glfw imgui)
-
-    # 1. 컴파일러에게 "Atomis/Shared Memory" 기능을 켜라고 지시
-    add_compile_options("-pthread")
-    add_compile_options("-sPROXY_TO_PTHREAD") # __EMSCRIPTEN_PTHREADS__ 매크로 정의 등을 위해 필요
-    
-    # 2. 링커에게 스레드 풀 및 워커 생성 코드를 포함하라고 지시
-    add_link_options("-pthread")
-    add_link_options("-sPROXY_TO_PTHREAD")
-    add_link_options("-sPTHREAD_POOL_SIZE=3") # 스레드 풀 사이즈 (적절히 조절)
-
-    # Emscripten 관련 속성 및 링크 플래그를 설정합니다.
-    set_target_properties(RobotPal PROPERTIES SUFFIX ".html")
-    target_link_options(RobotPal PRIVATE
-        "-sUSE_GLFW=3"
-        "-sFULL_ES3=1"          # WebGL 2에 OpenGL ES 3 사용
-        "-sALLOW_MEMORY_GROWTH=1"
-        "--use-preload-plugins" # 에셋 로딩을 위함
-    )
-    target_link_options(RobotPal PRIVATE
-        "SHELL:--preload-file ${ASSET_DIR}@/Assets"
-    )
-
-    target_link_options(RobotPal PRIVATE
-        "SHELL:-sSTACK_SIZE=8388608"
-    )
 else()
+    # Native (Windows/Linux) 빌드 설정
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -197,10 +192,6 @@ else()
     find_package(Threads REQUIRED)
 
     target_link_libraries(RobotPal PRIVATE Threads::Threads)
-
-    # 3. 라이브러리 링크
-    # "opengl32" 대신 "OpenGL::GL" 사용
-    # (참고: 네이티브 빌드 시 glfw 타겟은 Linux에서 X11 등을 자동으로 찾아 링크합니다)
     target_link_libraries(imgui PRIVATE glfw OpenGL::GL)
     target_link_libraries(RobotPal PRIVATE glfw OpenGL::GL imgui)
 
@@ -211,12 +202,8 @@ else()
         COMMENT "Copying Assets to output directory..."
     )
 
-    # 6. Linux 전용 X11 라이브러리 처리
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         find_package(X11 REQUIRED)
-        # imgui_impl_glfw.cpp가 X11 함수를 직접 사용하므로 imgui에 링크
         target_link_libraries(imgui PRIVATE ${X11_LIBRARIES})
     endif()
 endif()
-
-# TODO: 필요한 경우 테스트를 추가하고 대상을 설치합니다.
