@@ -60,12 +60,12 @@ void SandboxScene::OnEnter()
     auto robotCamera=CreateEntity("robotCam");
 #ifdef __EMSCRIPTEN__
     // Web 환경: WebSocket
-    robotCamera.Set<Camera>({160.f, 0.001f, 1000.f, true})
+    robotCamera.Set<Camera>({80.f, 0.001f, 1000.f, false})
            .Set<RenderTarget>({camView})
            .Set<VideoSender>({"ws://127.0.0.1:9999"}); // WebSocket URL
 #else
     // 네이티브 환경: TCP
-    robotCamera.Set<Camera>({160.f, 0.001f, 1000.f, true})
+    robotCamera.Set<Camera>({80.f, 0.001f, 1000.f, false})
            .Set<RenderTarget>({camView})
            .Set<VideoSender>({"127.0.0.1:9998"}); // TCP 소켓 주소
 #endif

@@ -95,169 +95,213 @@ void Texture::SetCubeMapData(const std::vector<void*>& faces) {
 // ---------------------------------------------------------
 // [핵심] PBO를 이용한 비동기 데이터 읽기 (Double Buffering)
 // ---------------------------------------------------------
-std::vector<uint8_t> Texture::GetAsyncData(uint64_t currentFrameIndex) {
-    if (m_Type != TextureType::Texture2D) return {};
-
-    // --- 프레임 캐싱 ---
-    if (m_LastUpdateFrame == currentFrameIndex && !m_CachedData.empty()) {
-        return m_CachedData;
-    }
-
-    int pixelCount = m_Width * m_Height;
-    int dstChannels = (m_Format == TextureFormat::RGBA8) ? 4 : 3;
-
-    // 버퍼 크기 확보
-    if (m_CachedData.size() != pixelCount * dstChannels) {
-        m_CachedData.resize(pixelCount * dstChannels);
-    }
-
-    // --- FBO 준비 ---
-    static GLuint s_ReadFBO = 0;
-    if (s_ReadFBO == 0) glGenFramebuffers(1, &s_ReadFBO);
-
-    GLint lastFBO;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &lastFBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, s_ReadFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_RendererID, 0);
-
-#ifdef __EMSCRIPTEN__
-    // Web: 항상 RGBA 읽기
-    std::vector<uint8_t> tempData(pixelCount * 4); // RGBA 임시 버퍼
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadPixels(0, 0, m_Width, m_Height, GL_RGBA, GL_UNSIGNED_BYTE, tempData.data());
-    glPixelStorei(GL_PACK_ALIGNMENT, 4);
-
-    if (dstChannels == 4) {
-        m_CachedData.swap(tempData);
-    } else {
-        for (int i = 0; i < pixelCount; ++i) {
-            m_CachedData[i*3 + 0] = tempData[i*4 + 0];
-            m_CachedData[i*3 + 1] = tempData[i*4 + 1];
-            m_CachedData[i*3 + 2] = tempData[i*4 + 2];
-        }
-    }
-#else
-    // 데스크톱: PBO 비동기 처리
-    if (!m_UsePBO) InitPBOs();
-
-    int writeIndex = m_PBOIndex;
-    int readIndex  = (m_PBOIndex + 1) % 2;
-
-    // GPU 비동기 캡처
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBOs[writeIndex]);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadPixels(0, 0, m_Width, m_Height, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-
-    // 이전 프레임 CPU 읽기
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBOs[readIndex]);
-    uint8_t* ptr = (uint8_t*)glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, pixelCount * 4, GL_MAP_READ_BIT);
-
-    if (ptr) {
-        if (dstChannels == 4) {
-            memcpy(m_CachedData.data(), ptr, pixelCount * 4);
-        } else {
-            for (int i = 0; i < pixelCount; ++i) {
-                m_CachedData[i*3 + 0] = ptr[i*4 + 0];
-                m_CachedData[i*3 + 1] = ptr[i*4 + 1];
-                m_CachedData[i*3 + 2] = ptr[i*4 + 2];
-            }
-        }
-        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-    }
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-    glPixelStorei(GL_PACK_ALIGNMENT, 4);
-    m_PBOIndex = (m_PBOIndex + 1) % 2;
-#endif
-
-    glBindFramebuffer(GL_FRAMEBUFFER, lastFBO);
-    m_LastUpdateFrame = currentFrameIndex;
-
-    return m_CachedData;
-}
-
-
 // std::vector<uint8_t> Texture::GetAsyncData(uint64_t currentFrameIndex) {
 //     if (m_Type != TextureType::Texture2D) return {};
 
-//     // 1. 중복 호출 방지 (프레임 캐싱)
+//     // --- 프레임 캐싱 ---
 //     if (m_LastUpdateFrame == currentFrameIndex && !m_CachedData.empty()) {
 //         return m_CachedData;
 //     }
 
-//     // 2. PBO 지연 초기화
-//     if (!m_UsePBO) InitPBOs();
-
-//     // 3. 포맷 및 사이즈 설정
-//     // 중요: PBO 읽기는 호환성을 위해 무조건 4채널(RGBA)로 수행
 //     int pixelCount = m_Width * m_Height;
-//     int srcChannels = 4; // PBO 저장용 (RGBA)
-//     int dstChannels = (m_Format == TextureFormat::RGBA8) ? 4 : 3; // 사용자 반환용
-    
-//     // 결과 버퍼 크기 확보
+//     int dstChannels = (m_Format == TextureFormat::RGBA8) ? 4 : 3;
+
+//     // 버퍼 크기 확보
 //     if (m_CachedData.size() != pixelCount * dstChannels) {
 //         m_CachedData.resize(pixelCount * dstChannels);
 //     }
 
-//     // 인덱스 설정 (Ping-Pong)
-//     int writeIndex = m_PBOIndex;           // 이번에 GPU가 쓸 버퍼
-//     int readIndex = (m_PBOIndex + 1) % 2;  // 이번에 CPU가 읽을 버퍼 (이전 프레임)
-
-//     // --- STEP 1: GPU에게 캡처 명령 (비동기 Write) ---
-    
+//     // --- FBO 준비 ---
+//     static GLuint s_ReadFBO = 0;
 //     if (s_ReadFBO == 0) glGenFramebuffers(1, &s_ReadFBO);
-    
+
 //     GLint lastFBO;
 //     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &lastFBO);
-
 //     glBindFramebuffer(GL_FRAMEBUFFER, s_ReadFBO);
 //     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_RendererID, 0);
 
-//     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBOs[writeIndex]);
-    
-//     // [중요] 1바이트 정렬 (데이터 밀림 방지)
+// #ifdef __EMSCRIPTEN__
+//     // Web: 항상 RGBA 읽기
+//     std::vector<uint8_t> tempData(pixelCount * 4); // RGBA 임시 버퍼
 //     glPixelStorei(GL_PACK_ALIGNMENT, 1);
+//     glReadPixels(0, 0, m_Width, m_Height, GL_RGBA, GL_UNSIGNED_BYTE, tempData.data());
+//     glPixelStorei(GL_PACK_ALIGNMENT, 4);
 
-//     // [중요] GL_RGBA 포맷으로 읽기 (대부분의 드라이버 호환성 확보)
+//     if (dstChannels == 4) {
+//         m_CachedData.swap(tempData);
+//     } else {
+//         for (int i = 0; i < pixelCount; ++i) {
+//             m_CachedData[i*3 + 0] = tempData[i*4 + 0];
+//             m_CachedData[i*3 + 1] = tempData[i*4 + 1];
+//             m_CachedData[i*3 + 2] = tempData[i*4 + 2];
+//         }
+//     }
+// #else
+//     // 데스크톱: PBO 비동기 처리
+//     if (!m_UsePBO) InitPBOs();
+
+//     int writeIndex = m_PBOIndex;
+//     int readIndex  = (m_PBOIndex + 1) % 2;
+
+//     // GPU 비동기 캡처
+//     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBOs[writeIndex]);
+//     glPixelStorei(GL_PACK_ALIGNMENT, 1);
 //     glReadPixels(0, 0, m_Width, m_Height, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 
-//     glBindFramebuffer(GL_FRAMEBUFFER, lastFBO);
-
-//     // --- STEP 2: 이전 프레임 데이터 가져오기 (CPU Read) ---
-    
+//     // 이전 프레임 CPU 읽기
 //     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBOs[readIndex]);
-    
-//     // 맵핑 (이전 프레임 데이터라 대기 시간 거의 없음)
-//     uint8_t* ptr = (uint8_t*)glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, pixelCount * srcChannels, GL_MAP_READ_BIT);
-    
+//     uint8_t* ptr = (uint8_t*)glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, pixelCount * 4, GL_MAP_READ_BIT);
+
 //     if (ptr) {
 //         if (dstChannels == 4) {
-//             // RGBA 그대로 복사
-//             memcpy(m_CachedData.data(), ptr, pixelCount * srcChannels);
-//         } 
-//         else {
-//             // RGBA -> RGB 변환 (알파 제거)
-//             uint8_t* dst = m_CachedData.data();
+//             memcpy(m_CachedData.data(), ptr, pixelCount * 4);
+//         } else {
 //             for (int i = 0; i < pixelCount; ++i) {
-//                 dst[i*3 + 0] = ptr[i*4 + 0]; // R
-//                 dst[i*3 + 1] = ptr[i*4 + 1]; // G
-//                 dst[i*3 + 2] = ptr[i*4 + 2]; // B
+//                 m_CachedData[i*3 + 0] = ptr[i*4 + 0];
+//                 m_CachedData[i*3 + 1] = ptr[i*4 + 1];
+//                 m_CachedData[i*3 + 2] = ptr[i*4 + 2];
 //             }
 //         }
 //         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-//     } 
-//     else {
-//         // 첫 프레임 등 데이터 없을 때: 검은색 유지
 //     }
+//     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+//     glPixelStorei(GL_PACK_ALIGNMENT, 4);
+//     m_PBOIndex = (m_PBOIndex + 1) % 2;
+// #endif
 
-//     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0); // PBO 언바인딩
-//     glPixelStorei(GL_PACK_ALIGNMENT, 4);   // 정렬 복구
-
-//     // 상태 업데이트
-//     m_PBOIndex = (m_PBOIndex + 1) % 2; // 다음 턴을 위해 스왑
+//     glBindFramebuffer(GL_FRAMEBUFFER, lastFBO);
 //     m_LastUpdateFrame = currentFrameIndex;
 
 //     return m_CachedData;
 // }
+std::vector<uint8_t> Texture::GetAsyncData(uint64_t currentFrameIndex) {
+#ifdef __EMSCRIPTEN__
+    if (m_Type != TextureType::Texture2D) return {};
+
+    // GLES/بعض 드라이버에서 glReadPixels는 GL_RGB를 지원하지 않을 수 있습니다.
+    // 안전하게 항상 GL_RGBA로 읽고, 필요 시 CPU에서 변환합니다.
+    const int read_channels = 4;
+    const GLenum read_format = GL_RGBA;
+    
+    int dataSizeWithAlpha = m_Width * m_Height * read_channels;
+    std::vector<uint8_t> rgba_data(dataSizeWithAlpha);
+
+    GLint lastFBO;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &lastFBO);
+
+    if (s_ReadFBO == 0) glGenFramebuffers(1, &s_ReadFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, s_ReadFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_RendererID, 0);
+
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    
+    // glFinish()는 동기화 문제를 해결하지 못했으므로 제거합니다.
+    // glFinish(); 
+
+    glReadPixels(0, 0, m_Width, m_Height, read_format, GL_UNSIGNED_BYTE, rgba_data.data());
+
+    glBindFramebuffer(GL_FRAMEBUFFER, lastFBO);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+
+    // 원본 포맷에 따라 최종 결과 벡터를 생성합니다.
+    if (m_Format == TextureFormat::RGB8) {
+        int finalDataSize = m_Width * m_Height * 3;
+        std::vector<uint8_t> rgb_data(finalDataSize);
+        for (int i = 0; i < m_Width * m_Height; ++i) {
+            rgb_data[i * 3 + 0] = rgba_data[i * 4 + 0]; // R
+            rgb_data[i * 3 + 1] = rgba_data[i * 4 + 1]; // G
+            rgb_data[i * 3 + 2] = rgba_data[i * 4 + 2]; // B
+        }
+        return rgb_data;
+    } else {
+        // RGBA8 또는 기타 지원 포맷의 경우, 그대로 반환 (또는 추가 처리)
+        return rgba_data;
+    }
+#else
+    if (m_Type != TextureType::Texture2D) return {};
+
+    // 1. 중복 호출 방지 (프레임 캐싱)
+    if (m_LastUpdateFrame == currentFrameIndex && !m_CachedData.empty()) {
+        return m_CachedData;
+    }
+
+    // 2. PBO 지연 초기화
+    if (!m_UsePBO) InitPBOs();
+
+    // 3. 포맷 및 사이즈 설정
+    // 중요: PBO 읽기는 호환성을 위해 무조건 4채널(RGBA)로 수행
+    int pixelCount = m_Width * m_Height;
+    int srcChannels = 4; // PBO 저장용 (RGBA)
+    int dstChannels = (m_Format == TextureFormat::RGBA8) ? 4 : 3; // 사용자 반환용
+    
+    // 결과 버퍼 크기 확보
+    if (m_CachedData.size() != pixelCount * dstChannels) {
+        m_CachedData.resize(pixelCount * dstChannels);
+    }
+
+    // 인덱스 설정 (Ping-Pong)
+    int writeIndex = m_PBOIndex;           // 이번에 GPU가 쓸 버퍼
+    int readIndex = (m_PBOIndex + 1) % 2;  // 이번에 CPU가 읽을 버퍼 (이전 프레임)
+
+    // --- STEP 1: GPU에게 캡처 명령 (비동기 Write) ---
+    
+    if (s_ReadFBO == 0) glGenFramebuffers(1, &s_ReadFBO);
+    
+    GLint lastFBO;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &lastFBO);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, s_ReadFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_RendererID, 0);
+
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBOs[writeIndex]);
+    
+    // [중요] 1바이트 정렬 (데이터 밀림 방지)
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+
+    // [중요] GL_RGBA 포맷으로 읽기 (대부분의 드라이버 호환성 확보)
+    glReadPixels(0, 0, m_Width, m_Height, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, lastFBO);
+
+    // --- STEP 2: 이전 프레임 데이터 가져오기 (CPU Read) ---
+    
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBOs[readIndex]);
+    
+    // 맵핑 (이전 프레임 데이터라 대기 시간 거의 없음)
+    uint8_t* ptr = (uint8_t*)glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, pixelCount * srcChannels, GL_MAP_READ_BIT);
+    
+    if (ptr) {
+        if (dstChannels == 4) {
+            // RGBA 그대로 복사
+            memcpy(m_CachedData.data(), ptr, pixelCount * srcChannels);
+        } 
+        else {
+            // RGBA -> RGB 변환 (알파 제거)
+            uint8_t* dst = m_CachedData.data();
+            for (int i = 0; i < pixelCount; ++i) {
+                dst[i*3 + 0] = ptr[i*4 + 0]; // R
+                dst[i*3 + 1] = ptr[i*4 + 1]; // G
+                dst[i*3 + 2] = ptr[i*4 + 2]; // B
+            }
+        }
+        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+    } 
+    else {
+        // 첫 프레임 등 데이터 없을 때: 검은색 유지
+    }
+
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0); // PBO 언바인딩
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);   // 정렬 복구
+
+    // 상태 업데이트
+    m_PBOIndex = (m_PBOIndex + 1) % 2; // 다음 턴을 위해 스왑
+    m_LastUpdateFrame = currentFrameIndex;
+
+    return m_CachedData;
+#endif
+}
+
 
 void Texture::InitPBOs() {
     // [중요] GetAsyncData에서 GL_RGBA(4채널)로 읽으므로 버퍼도 4채널 크기로 확보해야 함

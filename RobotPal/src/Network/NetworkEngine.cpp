@@ -40,7 +40,12 @@ bool NetworkEngine::IsConnected() const {
 void NetworkEngine::SendPacket(const std::vector<uint8_t> &rawData) 
 {
     if (!isRunning) return;
+#ifdef __EMSCRIPTEN__
+    m_Transport->Send(rawData);
+#else
     m_SendQueue.Push(rawData);
+    return;
+#endif
 }
 
 std::optional<Packet> NetworkEngine::GetPacket()
@@ -86,11 +91,11 @@ void NetworkEngine::SendLoop()
 {
     while (isRunning)
     {
-        //FlushSendQueue();
-        if(auto packetOpt = m_SendQueue.TryPop())
-        {
-            m_Transport->Send(packetOpt->data);
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        FlushSendQueue();
+        // if(auto packetOpt = m_SendQueue.TryPop())
+        // {
+        //     m_Transport->Send(packetOpt->data);
+        // }
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
 }

@@ -50,6 +50,7 @@ void StreamingSystemModule::RegisterSystem(flecs::world& world)
 {
     world.system<const Camera, const RenderTarget, const VideoSender>()
     .kind(flecs::PostFrame) // [핵심] 렌더링(OnStore)이 끝난 직후 실행
+    .rate(1)
     .multi_threaded(false)
     .each([&](flecs::entity entity, const Camera &cam, const RenderTarget &renderTarget, const VideoSender& videoCmp)
     {
