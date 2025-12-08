@@ -23,13 +23,7 @@ static Entity g_RobotEntity;
 
 std::shared_ptr<Framebuffer> camView;
 void SandboxScene::OnEnter()
-{   
-
-    // auto networkEngine = m_World.get_mut<NetworkEngineHandle>();
-    // networkEngine.instance->Connect("127.0.0.1:9998");
-    // m_StreamingManager = IStreamingManager::Create(m_World);
-    // m_StreamingManager->Init();
-    
+{    
     auto hdrID = AssetManager::Get().LoadTextureHDR("./Assets/airport.hdr");
     m_World.set<Skybox>({hdrID, 1.0f, 0.0f});
 
@@ -88,9 +82,6 @@ void SandboxScene::OnUpdate(float dt)
 {
     if (!g_Controller) return;
 
-    // -------------------------------------------------------
-    // [1] 입력 처리 (Input)
-    // -------------------------------------------------------
     float v = 0.0f;
     float w = 0.0f;
     GLFWwindow* window = glfwGetCurrentContext();
@@ -101,32 +92,8 @@ void SandboxScene::OnUpdate(float dt)
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) w = turn_speed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) w = -turn_speed;
 
-    // -------------------------------------------------------
-    // [2] 드라이버 업데이트 (Logic)
-    // -------------------------------------------------------
-    // 드라이버가 Entity의 Position, Rotation을 수정함
-
     g_Controller->Move(v, w);
     g_Controller->Update(dt);
-
-//    if (m_StreamingManager)
-//     {
-//         auto data = camView->GetColorAttachment()->GetAsyncData();
-//         if (!data.empty())
-//         {
-//             auto width = camView->GetWidth();
-//             auto height = camView->GetHeight();
-//             // The texture format is RGBA, so 3 channels.
-//             m_StreamingManager->SendFrame({data, width, height, 3});
-//         }
-//     }
-
-    // 모델 그리기
-    // auto modelRes = AssetManager::Get().GetModel("./Assets/jetank.glb");
-    // if (modelRes) {
-    //     RenderNode(modelRes->nodes[modelRes->rootNodeIndex], rootTransform, *modelRes);
-    // }
-    //auto data=camView->GetColorAttachment()->GetAsyncData();
 
     //일단 이형태로 가져와서 씀
     //auto NetworkEngine=m_World.get<NetworkEngineHandle>().instance;

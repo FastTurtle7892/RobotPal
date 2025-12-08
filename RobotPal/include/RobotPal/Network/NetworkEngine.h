@@ -35,28 +35,13 @@ public:
 
     // --- TX/RX ---
     void SendPacket(const std::vector<uint8_t>& rawData);
-    std::optional<Packet> GetPacket();      
-    void FlushSendQueue();                  
-
-private:
-    // --- Internal Thread Control ---
-    void Start();
-    void Stop();
-    void RecvLoop();
-    void SendLoop();
-
+    std::optional<Packet> GetPacket();                      
 private:
     flecs::world& m_World;
 
     std::shared_ptr<NetworkTransport> m_Transport;
-
-    NetworkQueue m_SendQueue;
     NetworkQueue m_RecvQueue;
-
-    std::atomic<bool> isRunning;
-    std::thread recvThread;
-    std::thread sendThread;
-
+    
     std::string m_CurrentUrl;
 };
 

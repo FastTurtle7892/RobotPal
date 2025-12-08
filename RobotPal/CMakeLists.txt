@@ -22,7 +22,7 @@ if(EMSCRIPTEN)
     add_link_options(
         "-pthread"
         "-sALLOW_MEMORY_GROWTH=1"
-        "-sPTHREAD_POOL_SIZE=8"   # 스레드 풀 8개 확보
+        "-sPTHREAD_POOL_SIZE=3"   # 스레드 풀
         "-sUSE_GLFW=3"
         "-sFULL_ES3=1"
         "-lwebsocket.js"
