@@ -1,1 +1,1 @@
-from .TTLServo import TTLServo
+from . import TTLServo
