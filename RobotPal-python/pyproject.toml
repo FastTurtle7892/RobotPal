@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robotpal"
+version = "0.1.0"
+description = "RobotPal Simulator SDK for JetBot & JeTank"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "MIT" }
+authors = [
+    { name = "Junwoo Seo", email = "your.email@example.com" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+# [핵심] 이 라이브러리를 설치하면 아래 패키지들도 자동으로 설치됩니다.
+dependencies = [
+    "traitlets",
+    "ipywidgets",
+    "opencv-python",
+    "numpy",
+    "websockets",
+    "asyncio",
+]
+
+# [옵션] 개발할 때 필요한 도구들 (pip install -e .[dev] 로 설치 가능)
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "black",
+]
+
+# [중요] 소스 코드가 'src' 폴더 안에 있다고 알려주는 설정
+[tool.setuptools.packages.find]
+where = ["src"]
