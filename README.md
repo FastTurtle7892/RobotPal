@@ -63,7 +63,7 @@ For the easiest access, you can download the latest pre-built version for your o
 
 ```bash
 # Clone the repository
-git clone https://github.com/junwo/RobotPal.git
+git clone https://github.com/Junwoo-Seo-1998/RobotPal.git
 cd RobotPal
 
 # Configure and build the project
@@ -83,7 +83,7 @@ This is for testing your own local changes. For a quick look, please use the [Li
 # e.g., source ./emsdk_env.sh
 
 # Clone the repository
-git clone https://github.com/junwo/RobotPal.git
+git clone https://github.com/Junwoo-Seo-1998/RobotPal.git
 cd RobotPal
 
 # Configure and build the project for the web
@@ -93,7 +93,7 @@ cmake --build build-web
 # Run a local server in the build-web directory to view the results
 cd build-web
 python -m http.server
-# Open your browser and go to http://localhost:8000/RobotPal.html
+# Open your browser and go to http://localhost:8000/index.html
 ```
 
 ## Contributing
@@ -171,7 +171,7 @@ RobotPal은 이러한 문제들을 해결하기 위해 만들어졌습니다. �
 
 ```bash
 # 저장소 클론
-git clone https://github.com/junwo/RobotPal.git
+git clone https://github.com/Junwoo-Seo-1998/RobotPal.git
 cd RobotPal
 
 # 프로젝트 구성 및 빌드
@@ -191,7 +191,7 @@ cmake --build build
 # 예: source ./emsdk_env.sh
 
 # 저장소 클론
-git clone https://github.com/junwo/RobotPal.git
+git clone https://github.com/Junwoo-Seo-1998/RobotPal.git
 cd RobotPal
 
 # 웹을 위한 프로젝트 구성 및 빌드
@@ -201,7 +201,7 @@ cmake --build build-web
 # build-web 디렉토리에서 로컬 서버를 실행하여 결과 확인
 cd build-web
 python -m http.server
-# 브라우저를 열고 http://localhost:8000/RobotPal.html 로 이동
+# 브라우저를 열고 http://localhost:8000/index.html 로 이동
 ```
 
 ## 기여하기
@@ -211,3 +211,4 @@ python -m http.server
 ## 라이선스
 
 이 프로젝트는 MIT 라이선스를 따릅니다. 자세한 내용은 `LICENSE` 파일을 참고하세요.
+
