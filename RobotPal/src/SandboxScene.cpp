@@ -73,11 +73,11 @@ void SandboxScene::OnEnter()
         robotCamera.SetParent(attachPoint);
     }
 
-    // g_Controller = std::make_unique<HybridController>(prefabEntity);
+    g_Controller = std::make_unique<HybridController>(prefabEntity);
 
-    // if (g_Controller->Init()) {
-    //     std::cout << ">>> Hybrid Controller (Shared Entity) Initialized!" << std::endl;
-    // }
+    if (g_Controller->Init()) {
+        std::cout << ">>> Hybrid Controller (Shared Entity) Initialized!" << std::endl;
+    }
     std::cout << ">>> Setting ControllerComponent on prefabEntity\n";
     prefabEntity.Set<ControllerComponent>({prefabEntity});
     std::cout << ">>> ControllerComponent set successfully\n";
@@ -85,20 +85,20 @@ void SandboxScene::OnEnter()
 
 void SandboxScene::OnUpdate(float dt)
 {
-    // if (!g_Controller) return;
+    if (!g_Controller) return;
 
-    // float v = 0.0f;
-    // float w = 0.0f;
-    // GLFWwindow* window = glfwGetCurrentContext();
-    // float speed = 1.0f; 
-    // float turn_speed = 2.5f;
-    // if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) v = speed;
-    // if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) v = -speed;
-    // if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) w = turn_speed;
-    // if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) w = -turn_speed;
+    float v = 0.0f;
+    float w = 0.0f;
+    GLFWwindow* window = glfwGetCurrentContext();
+    float speed = 1.0f; 
+    float turn_speed = 2.5f;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) v = speed;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) v = -speed;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) w = turn_speed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) w = -turn_speed;
 
-    // g_Controller->Move(v, w);
-    // g_Controller->Update(dt);
+    g_Controller->Move(v, w);
+    g_Controller->Update(dt);
 
 
 }
