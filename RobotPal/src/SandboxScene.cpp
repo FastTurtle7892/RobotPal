@@ -18,7 +18,7 @@
 #include <memory>
 
 
-static std::unique_ptr<IRobotController> g_Controller;
+static std::shared_ptr<IRobotController> g_Controller;
 static Entity g_RobotEntity;
 
 std::shared_ptr<Framebuffer> camView;
@@ -30,9 +30,11 @@ void SandboxScene::OnEnter()
     auto modelPrefab = AssetManager::Get().GetPrefab(m_World, "./Assets/jetank.glb");
     auto prefabEntity = CreateEntity("mainModel");
     prefabEntity.GetHandle().is_a(modelPrefab);
-
+    
     prefabEntity.SetLocalPosition(glm::vec3(0.f, 0.f, 0.7f));
     prefabEntity.SetLocalRotation(glm::radians(glm::vec3(0.f, -90.f, 0.f)));
+    
+    
 
     auto prefabEntity2 = CreateEntity("mainModel2");
     prefabEntity2.GetHandle().is_a(modelPrefab);
@@ -50,6 +52,7 @@ void SandboxScene::OnEnter()
 
     // camView=Framebuffer::Create(1640, 1232);
     camView=Framebuffer::Create(224, 224);
+
 
     auto robotCamera=CreateEntity("robotCam");
 #ifdef __EMSCRIPTEN__
@@ -70,33 +73,33 @@ void SandboxScene::OnEnter()
         robotCamera.SetParent(attachPoint);
     }
 
-    g_Controller = std::make_unique<HybridController>(prefabEntity);
+    // g_Controller = std::make_unique<HybridController>(prefabEntity);
 
-    if (g_Controller->Init()) {
-        std::cout << ">>> Hybrid Controller (Shared Entity) Initialized!" << std::endl;
-    }
-
+    // if (g_Controller->Init()) {
+    //     std::cout << ">>> Hybrid Controller (Shared Entity) Initialized!" << std::endl;
+    // }
+    std::cout << ">>> Setting ControllerComponent on prefabEntity\n";
+    prefabEntity.Set<ControllerComponent>({prefabEntity});
+    std::cout << ">>> ControllerComponent set successfully\n";
 }  
 
 void SandboxScene::OnUpdate(float dt)
 {
-    if (!g_Controller) return;
+    // if (!g_Controller) return;
 
-    float v = 0.0f;
-    float w = 0.0f;
-    GLFWwindow* window = glfwGetCurrentContext();
-    float speed = 1.0f; 
-    float turn_speed = 2.5f;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) v = speed;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) v = -speed;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) w = turn_speed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) w = -turn_speed;
+    // float v = 0.0f;
+    // float w = 0.0f;
+    // GLFWwindow* window = glfwGetCurrentContext();
+    // float speed = 1.0f; 
+    // float turn_speed = 2.5f;
+    // if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) v = speed;
+    // if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) v = -speed;
+    // if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) w = turn_speed;
+    // if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) w = -turn_speed;
 
-    g_Controller->Move(v, w);
-    g_Controller->Update(dt);
+    // g_Controller->Move(v, w);
+    // g_Controller->Update(dt);
 
-    //일단 이형태로 가져와서 씀
-    //auto NetworkEngine=m_World.get<NetworkEngineHandle>().instance;
 
 }
 
