@@ -100,7 +100,7 @@ void ControllerSystemModule::RegisterSystem(flecs::world &world)
             glm::vec3 rot = m_Entity.GetLocalRotation();
 
             MovementMath::CalculateNextStep(pos, rot, m_CurrentV, m_CurrentW, dt);
-            MovementMath::ApplyFriction(m_CurrentV, m_CurrentW, 1.3f);
+            MovementMath::ApplyFriction(m_CurrentV, m_CurrentW, 0.95f);
 
             m_Entity.SetLocalPosition(pos);
             m_Entity.SetLocalRotation(rot);
