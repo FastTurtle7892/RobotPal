@@ -20,9 +20,9 @@ if(EMSCRIPTEN)
     # 3. 링크 옵션 (전역 설정)
     # 스레드 풀 사이즈, 웹소켓 등 링커에게 필요한 정보를 미리 줍니다.
     add_link_options(
-        "-pthread"
+        #"-pthread"
         "-sALLOW_MEMORY_GROWTH=1"
-        "-sPTHREAD_POOL_SIZE=3"   # 스레드 풀
+        #"-sPTHREAD_POOL_SIZE=3"   # 스레드 풀
         "-sUSE_GLFW=3"
         "-sFULL_ES3=1"
         "-lwebsocket.js"
