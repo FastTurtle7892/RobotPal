@@ -50,17 +50,20 @@ void StreamingSystemModule::RegisterSystem(flecs::world& world)
 {
     world.system<const Camera, const RenderTarget, const VideoSender>()
     .kind(flecs::PostFrame) // [핵심] 렌더링(OnStore)이 끝난 직후 실행
-    .rate(1)
+    .rate(2)
     .multi_threaded(false)
     .each([&](flecs::entity entity, const Camera &cam, const RenderTarget &renderTarget, const VideoSender& videoCmp)
     {
+        if(!netEngine || !netEngine->IsConnected())
+            return;
+
         auto fbo=renderTarget.fbo;
         auto tex=fbo->GetColorAttachment();
 
         uint64_t currentFrame = world.get_info()->frame_count_total;
         auto data=tex->GetAsyncData(currentFrame);
         if (!data.empty())
-        {
+         {
             auto colorTex = renderTarget.fbo->GetColorAttachment();
             auto width = colorTex->GetWidth();
             auto height = colorTex->GetHeight();
