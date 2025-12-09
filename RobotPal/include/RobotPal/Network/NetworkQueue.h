@@ -1,15 +1,13 @@
 #ifndef __NETWORKQUEUE_H__
 #define __NETWORKQUEUE_H__
+
+#include "RobotPal/Util/DataFormat.h"
 #include <queue>
 #include <mutex>
 #include <vector>
 #include <optional>
 
 // 모든 패킷의 기본 단위 (바이너리 데이터)
-struct Packet {
-    std::vector<uint8_t> data;
-};
-
 class NetworkQueue {
 public:
     // [생산자 - Network Thread]
