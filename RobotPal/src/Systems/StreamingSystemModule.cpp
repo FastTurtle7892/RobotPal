@@ -36,10 +36,7 @@ void StreamingSystemModule::RegisterObserver(flecs::world& world)
     });
 }
 
-struct WriteContext 
-{
-    std::vector<uint8_t> buffer;
-};
+
 
 static void write_func(void* ctx, void* data, int size) {
     auto* c = static_cast<WriteContext*>(ctx);
@@ -91,6 +88,7 @@ void StreamingSystemModule::RegisterSystem(flecs::world& world)
             uint32_t len = static_cast<uint32_t>(ctx.buffer.size());
             packet.insert(packet.end(), reinterpret_cast<uint8_t*>(&len), reinterpret_cast<uint8_t*>(&len) + 4);
             packet.insert(packet.end(), ctx.buffer.begin(), ctx.buffer.end());
+            
             netEngine->SendPacket(packet);
             
         }
