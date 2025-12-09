@@ -36,10 +36,7 @@ void StreamingSystemModule::RegisterObserver(flecs::world& world)
     });
 }
 
-struct WriteContext 
-{
-    std::vector<uint8_t> buffer;
-};
+
 
 static void write_func(void* ctx, void* data, int size) {
     auto* c = static_cast<WriteContext*>(ctx);

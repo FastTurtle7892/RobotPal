@@ -3,6 +3,7 @@
 #include "RobotPal/Core/ResourceID.h"
 #include "RobotPal/Core/GraphicsTypes.h"
 #include "RobotPal/Core/Framebuffer.h"
+#include "RobotPal/Entity.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -93,4 +94,7 @@ struct VideoSender {
     // float timeSinceLastFrame;
 };
 
+struct ControllerComponent {
+    Entity entity;
+};
 #endif
