@@ -49,17 +49,17 @@ void SandboxScene::OnEnter()
     mainCam.SetLocalRotation(glm::radians(glm::vec3(-35.f, -0.15f, 0.f)));
 
     // camView=Framebuffer::Create(1640, 1232);
-    camView=Framebuffer::Create(400, 400);
+    camView=Framebuffer::Create(224, 224);
 
     auto robotCamera=CreateEntity("robotCam");
 #ifdef __EMSCRIPTEN__
     // Web 환경: WebSocket
-    robotCamera.Set<Camera>({80.f, 0.01f, 1000.f, false})
+    robotCamera.Set<Camera>({160.f, 0.01f, 1000.f, true})
            .Set<RenderTarget>({camView})
            .Set<VideoSender>({"ws://127.0.0.1:9999"}); // WebSocket URL
 #else
     // 네이티브 환경: TCP
-    robotCamera.Set<Camera>({80.f, 0.01f, 1000.f, false})
+    robotCamera.Set<Camera>({160.f, 0.01f, 1000.f, true})
            .Set<RenderTarget>({camView})
            .Set<VideoSender>({"127.0.0.1:9998"}); // TCP 소켓 주소
 #endif
