@@ -83,8 +83,8 @@ RenderSystemModule::RenderSystemModule(flecs::world &world)
 
     
     {
-        m_CubemapFBO=Framebuffer::Create(2048, 2048, TextureFormat::RGBA16F, true);
-        m_CubemapTexture=std::make_shared<Texture>(2048, 2048, TextureFormat::RGBA16F, TextureType::TextureCube);
+        m_CubemapFBO=Framebuffer::Create(512, 512, TextureFormat::RGBA16F, true);
+        m_CubemapTexture=std::make_shared<Texture>(512, 512, TextureFormat::RGBA16F, TextureType::TextureCube);
     }
 
     m_FishEyeShader=AssetManager::Get().GetShader("Assets/Shaders/FishEye.glsl");
@@ -208,7 +208,7 @@ void RenderSystemModule::RegisterSystem()
         if(cam.useFisheye)
         {
             m_CubemapFBO->Bind();
-            RenderCommand::SetViewport(0, 0, 2048, 2048);
+            RenderCommand::SetViewport(0, 0, 512, 512);
             glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, cam.nearPlane, cam.farPlane);
             glm::vec3 viewPos = glm::vec3(cameraWorldMatrix*glm::vec4(0.f, 0.f, 0.f, 1.f));
             glm::mat4 captureViews[] =
@@ -370,10 +370,12 @@ void RenderSystemModule::RenderScene(const glm::mat4 &view, const glm::mat4 &pro
         pbrShader->SetInt("u_UseIBL", 1);
 
         // 3-1. Diffuse: SH 계수 9개 전송
-        for (int i = 0; i < 9; ++i)
-        {
-            std::string name = "u_SH[" + std::to_string(i) + "]";
-            pbrShader->SetFloat3(name, ibl->shCoeffs[i]);
+        constexpr const char* shNames[9] = {
+            "u_SH[0]", "u_SH[1]", "u_SH[2]", "u_SH[3]", "u_SH[4]",
+            "u_SH[5]", "u_SH[6]", "u_SH[7]", "u_SH[8]"
+        };
+        for (int i = 0; i < 9; ++i) {
+            pbrShader->SetFloat3(shNames[i], ibl->shCoeffs[i]);
         }
 
         // 3-2. Specular: Prefiltered Map (Slot 5)
@@ -409,7 +411,8 @@ void RenderSystemModule::RenderScene(const glm::mat4 &view, const glm::mat4 &pro
             // VAO 바인딩
             auto meshData = AssetManager::Get().GetMesh(mf.meshID);
             if (!meshData) return; // 안전장치
-                meshData->vao->Bind();
+                
+            meshData->vao->Bind();
                 
             // 서브메쉬 순회
             int index = 0;

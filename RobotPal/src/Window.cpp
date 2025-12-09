@@ -21,7 +21,7 @@ bool Window::Init()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
-    glfwWindowHint(GLFW_SAMPLES, 8);
+    //glfwWindowHint(GLFW_SAMPLES, 8);
     float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
     m_PhysicalWidth=(int)(1280 * main_scale);
     m_PhysicalHeight=(int)(800 * main_scale);
@@ -36,7 +36,7 @@ bool Window::Init()
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
     gladLoadGLES2(glfwGetProcAddress);
-    glfwSwapInterval(1); // Enable vsync
+    //glfwSwapInterval(1); // Enable vsync
 
     m_WindowHandle=window;
     return true;
