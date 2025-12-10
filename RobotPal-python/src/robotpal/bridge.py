@@ -108,54 +108,30 @@ def _attach_js_stream(target):
 def smart_display(*objs, **kwargs):
     """
     display() 호출 시 가로채는 함수.
-    1. UI 렌더링 충돌을 막기 위해 HBox/VBox 내부의 이미지를 임시로 숨깁니다.
-    2. 원본 display를 호출하여 버튼, 슬라이더 등을 먼저 그립니다.
-    3. 이미지를 복구하고, JS 스트리밍을 연결합니다.
+    1. 원본 display를 호출하여 UI(버튼, 레이아웃 등)를 먼저 그립니다.
+    2. 객체 내부를 재귀적으로 탐색하여 '이미지 위젯'을 찾으면 스트리밍을 연결합니다.
     """
-    if not IS_COLAB:
-        # Colab이 아니면 원래 함수를 호출하고 종료 (로컬 Jupyter는 패치 불필요)
-        _original_display(*objs, **kwargs)
-        return
-
-    # 1. UI 렌더링 충돌 방지를 위한 준비
-    import ipywidgets
+    # 1. UI 렌더링 (이게 먼저 실행되어야 버튼이 보입니다)
+    _original_display(*objs, **kwargs)
     
-    # [1-1] 원본 display를 부르기 전, 스트리밍 대상 위젯을 저장하고 null로 임시 교체할 리스트
-    stream_targets = []
+    if not IS_COLAB: return
 
-    def recursive_prepare(widget):
+    # 2. 내부 이미지 위젯 탐색 (HBox, VBox 지원)
+    def recursive_check(widget):
+        # 이미지는 바로 연결
         if isinstance(widget, ipywidgets.Image):
-            # 이미지 위젯을 발견하면...
-            if widget.layout.display != 'none':
-                stream_targets.append(widget)
-                # **[핵심]** 이미지의 display 속성을 'none'으로 설정하여 렌더링 충돌 방지
-                widget.layout.display = 'none' 
-                return True
+            _attach_js_stream(widget)
+        # 컨테이너는 자식들을 탐색
         elif hasattr(widget, 'children'):
             for child in widget.children:
-                if recursive_prepare(child):
-                    return True # 성능을 위해 첫 번째 이미지만 찾고 종료
-
-    # 2. 메인 UI 요소들을 먼저 그리기 위해 이미지 숨기기
+                recursive_check(child)
+    
     try:
         for obj in objs:
             if isinstance(obj, ipywidgets.Widget):
-                recursive_prepare(obj)
-
-        # 3. **원본 display 호출** (버튼, 박스, 슬라이더 등이 먼저 그려집니다)
-        _original_display(*objs, **kwargs)
-
-    finally:
-        # 4. 이미지 복구 및 스트리밍 연결
-        for widget in stream_targets:
-            # [핵심] 숨겼던 이미지를 다시 보이게 합니다.
-            widget.layout.display = '' 
-            # 그 다음, JS 스트리밍 엔진을 붙입니다.
-            _attach_js_stream(widget)
-            
-        if not stream_targets:
-             # 만약 이미지가 없었다면, 그냥 원본 display만 실행했는지 확인
-             pass # 이미 3번에서 호출했으므로 아무것도 안 함
+                recursive_check(obj)
+    except Exception as e:
+        print(f"Smart Display Error: {e}")
 
 def apply_patch():
     """시스템의 display 함수를 스마트 버전으로 교체합니다."""
