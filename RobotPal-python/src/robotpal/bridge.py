@@ -227,17 +227,17 @@ class RobotPalBridge:
         t = threading.Thread(target=self._run_server_thread, daemon=True)
         t.start()
         
-        print("\n🚀 [RobotPal Bridge Started]")
+        print("\n[RobotPal Bridge Started]")
         
         # 3. 환경별 화면 띄우기
         if IS_COLAB:
             output.serve_kernel_port_as_iframe(8000, height=800)
         elif IS_IPYTHON:
-            print("🔗 Local Link: http://localhost:8000")
+            print("Local Link: http://localhost:8000")
             try: ipy_display(IFrame("http://localhost:8000", width='100%', height=800))
             except: pass
         else:
-            print("🌐 Open this URL in your browser: http://localhost:8000")
+            print("Open this URL in your browser: http://localhost:8000")
 
 # =================================================================
 # [4] 사용자가 호출할 범용 함수
