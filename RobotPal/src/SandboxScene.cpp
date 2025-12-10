@@ -36,9 +36,9 @@ void SandboxScene::OnEnter()
     
     
 
-    auto modelPrefab2 = AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
-    auto prefabEntity2 = CreateEntity("mainModel2");
-    prefabEntity2.GetHandle().is_a(modelPrefab2);
+    // auto modelPrefab2 = AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
+    // auto prefabEntity2 = CreateEntity("mainModel2");
+    // prefabEntity2.GetHandle().is_a(modelPrefab2);
     //prefabEntity2.SetLocalPosition({0.4f, 0.f, 0.5f});
     //prefabEntity2.SetLocalRotation(glm::radians(glm::vec3(0.f, -211.f, 0.f)));
 
