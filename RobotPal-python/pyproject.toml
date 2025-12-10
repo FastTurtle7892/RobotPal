@@ -25,6 +25,8 @@ dependencies = [
     "numpy",
     "websockets",
     "asyncio",
+    "aiohttp",   # <--- 추가됨 (비동기 서버/클라이언트용)
+    "requests",  # <--- 추가됨 (파일 다운로드용)
 ]
 
 # [옵션] 개발할 때 필요한 도구들 (pip install -e .[dev] 로 설치 가능)

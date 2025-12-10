@@ -36,14 +36,19 @@ void SandboxScene::OnEnter()
     
     
 
-    auto prefabEntity2 = CreateEntity("mainModel2");
-    prefabEntity2.GetHandle().is_a(modelPrefab);
-    prefabEntity2.SetLocalPosition({0.4f, 0.f, 0.5f});
-    prefabEntity2.SetLocalRotation(glm::radians(glm::vec3(0.f, -211.f, 0.f)));
+    // auto modelPrefab2 = AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
+    // auto prefabEntity2 = CreateEntity("mainModel2");
+    // prefabEntity2.GetHandle().is_a(modelPrefab2);
+    //prefabEntity2.SetLocalPosition({0.4f, 0.f, 0.5f});
+    //prefabEntity2.SetLocalRotation(glm::radians(glm::vec3(0.f, -211.f, 0.f)));
 
     auto mapPrefab = AssetManager::Get().GetPrefab(m_World, "./Assets/map.glb");
     auto map=CreateEntity("map");
     map.GetHandle().is_a(mapPrefab);
+
+    // auto tilePrefab = AssetManager::Get().GetPrefab(m_World, "./Assets/tile.glb");
+    // auto tile=CreateEntity("tile");
+    // tile.GetHandle().is_a(tilePrefab);
 
     auto mainCam=CreateEntity("mainCam");
     mainCam.Set<Camera>({});
