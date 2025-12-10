@@ -41,9 +41,10 @@ void EngineApp::Init()
     m_Window->Init();
     ImGuiManager::Get().Init(m_Window->GetNativeWindow());
 
+    
     m_SceneManager = std::make_shared<SceneManager>(m_World);
     m_SceneManager->LoadScene<SandboxScene>();
-
+    
     m_World.set<WindowData>({ (float)1280, (float)720});
 
     m_World.import<NetworkEngine>();
@@ -51,6 +52,8 @@ void EngineApp::Init()
     m_World.import<TransformSystemModule>();
     m_World.import<StreamingSystemModule>();
     m_World.import<ControllerSystemModule>();
+
+    m_World.progress(0.0f); // 초기화 진행
 }
 
 void EngineApp::MainLoop()

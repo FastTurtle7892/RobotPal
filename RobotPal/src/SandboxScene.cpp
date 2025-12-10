@@ -6,6 +6,7 @@
 #include "RobotPal/HybridController.h"
 #include "RobotPal/GlobalComponents.h"
 #include "RobotPal/Core/AssetManager.h"
+#include "RobotPal/SceneManager.h"
 #include "RobotPal/Components/Components.h"
 #include "RobotPal/Network/NetworkEngine.h"
 #include <glm/gtc/matrix_transform.hpp>
@@ -19,7 +20,7 @@
 
 
 static std::shared_ptr<IRobotController> g_Controller;
-static Entity g_RobotEntity;
+static Entity prefabEntity;
 
 std::shared_ptr<Framebuffer> camView;
 void SandboxScene::OnEnter()
@@ -28,7 +29,7 @@ void SandboxScene::OnEnter()
     m_World.set<Skybox>({hdrID, 1.0f, 0.0f});
 
     auto modelPrefab = AssetManager::Get().GetPrefab(m_World, "./Assets/jetank.glb");
-    auto prefabEntity = CreateEntity("mainModel");
+    prefabEntity = CreateEntity("mainModel");
     prefabEntity.GetHandle().is_a(modelPrefab);
     
     prefabEntity.SetLocalPosition(glm::vec3(0.f, 0.f, 0.7f));
@@ -118,9 +119,22 @@ void SandboxScene::OnImGuiRender()
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("Generated/IBL_Environment"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("IBL_BRDF_LUT"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::End();
+    ImGui::Begin("Reset Robot Position");
+    ImGui::Button("Reset");
+    if (ImGui::IsItemClicked())
+    {
+        auto sceneManagerHandle = m_World.get<const SceneManagerHandle>();
+        std::cout << sceneManagerHandle.instance << std::endl;
+        if(sceneManagerHandle.instance){
+            sceneManagerHandle.instance->LoadScene<SandboxScene>();
+        }
+    }
 
+    
+    ImGui::End();
+    
     ImGui::Begin("robotCam");
-    ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(400, 400), ImVec2(0, 0), ImVec2(1, -1));
+    ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(224, 224), ImVec2(0, 0), ImVec2(1, -1));
     ImGui::End();
 
     // 창 이름을 전체를 아우르는 이름으로 변경하면 좋습니다.
