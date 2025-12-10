@@ -27,14 +27,14 @@ except ImportError:
         IS_IPYTHON = True
     except ImportError:
         IS_IPYTHON = False
-        # IPython이 없는 일반 Python 환경(exec)에서도 실행 가능하도록
         def ipy_display(*args, **kwargs): pass
 
-# 원래의 display 함수 백업
+# 원래의 display 함수 백업 (패치 전)
 _original_display = IPython.display.display if IS_IPYTHON else print
 
 # =================================================================
 # [2] 스마트 디스플레이 패치 (JS Polling 방식)
+#     - 사용자가 제공한 '오류 수정 버전' 적용
 # =================================================================
 def smart_display(*objs, **kwargs):
     target = objs[0] if objs else None
@@ -47,11 +47,12 @@ def smart_display(*objs, **kwargs):
                 is_image_widget = True
         except: pass
 
-    # Colab 환경일 때만 JS Polling 패치 적용 (로컬은 기본 기능으로도 충분)
+    # Colab 환경이고 이미지 위젯인 경우 -> JS Polling 모드 작동
     if is_image_widget and IS_COLAB:
         widget_id = id(target)
         callback_name = f"get_frame_{widget_id}"
         
+        # (1) 파이썬 콜백: 현재 데이터 반환
         def get_frame_callback():
             img_data = target.value
             if img_data:
@@ -59,8 +60,10 @@ def smart_display(*objs, **kwargs):
                 return JSON({'b64': b64_str})
             return JSON({'b64': ''})
             
+        # (2) 콜백 등록
         output.register_callback(callback_name, get_frame_callback)
         
+        # (3) JS 코드 주입
         js_code = f"""
         <div id="container_{widget_id}">
             <img id="stream_{widget_id}" style="width:{target.width}px; height:{target.height}px; background:#000;"/>
@@ -91,15 +94,17 @@ def smart_display(*objs, **kwargs):
         """
         ipy_display(HTML(js_code))
     else:
+        # 그 외의 경우(로컬이거나 다른 위젯) 원래 함수 사용
         _original_display(*objs, **kwargs)
 
 def apply_patch():
+    """시스템의 display 함수를 스마트 버전으로 교체합니다."""
     if IS_COLAB:
         IPython.display.display = smart_display
-        print("🚀 [RobotPal] Smart Display Active (Colab Mode)")
+        print("🚀 [RobotPal] Smart Display Patch Applied (JS Polling Mode)")
 
 # =================================================================
-# [3] 브리지 서버 클래스
+# [3] 브리지 서버 클래스 (스마트 연결 대기 포함)
 # =================================================================
 class RobotPalBridge:
     def __init__(self, base_url="https://junwoo-seo-1998.github.io/RobotPal/"):
@@ -110,7 +115,6 @@ class RobotPalBridge:
         self.ws_ml = None
 
     def _setup_files(self):
-        # 파일 다운로드 로직 (기존과 동일)
         if os.path.exists(self.download_dir):
             try: shutil.rmtree(self.download_dir)
             except: pass
@@ -145,22 +149,30 @@ class RobotPalBridge:
 
     async def _maintain_ml_connection(self):
         ML_URL = "ws://127.0.0.1:9999"
+        # print(f"⏳ [대기] 웹 시뮬레이터가 켜지면 ML 서버({ML_URL})에 연결합니다...")
+
         while True:
+            # 웹앱이 없으면 연결하지 않고 대기 (데이터 손실 방지)
             if self.ws_browser is None or self.ws_browser.closed:
                 await asyncio.sleep(0.5)
                 continue
 
             try:
+                # print(f"⚡ 웹앱 감지됨! ML 서버에 연결 시도...")
                 async with aiohttp.ClientSession() as session:
                     async with session.ws_connect(ML_URL) as ws:
+                        # print(f"✅ ML 서버 연결 성공!")
                         self.ws_ml = ws
                         async for msg in ws:
-                            if self.ws_browser is None or self.ws_browser.closed: break 
+                            if self.ws_browser is None or self.ws_browser.closed:
+                                # print("⚠️ 웹앱 연결 끊김. ML 연결 중단.")
+                                break 
                             if msg.type == aiohttp.WSMsgType.TEXT:
                                 await self.ws_browser.send_str(msg.data)
                             elif msg.type == aiohttp.WSMsgType.BINARY:
                                 await self.ws_browser.send_bytes(msg.data)
             except: pass
+            
             self.ws_ml = None
             await asyncio.sleep(1)
 
@@ -207,28 +219,30 @@ class RobotPalBridge:
         loop.run_forever()
 
     def start(self):
+        # 1. 패치 적용
         apply_patch()
+        
+        # 2. 파일 준비 및 서버 스레드 시작
         self._setup_files()
         t = threading.Thread(target=self._run_server_thread, daemon=True)
         t.start()
         
-        print("\n[RobotPal Bridge Started]")
+        print("\n🚀 [RobotPal Bridge Started]")
         
+        # 3. 환경별 화면 띄우기
         if IS_COLAB:
             output.serve_kernel_port_as_iframe(8000, height=800)
         elif IS_IPYTHON:
-            print("Local Link: http://localhost:8000")
+            print("🔗 Local Link: http://localhost:8000")
             try: ipy_display(IFrame("http://localhost:8000", width='100%', height=800))
             except: pass
         else:
-            print("Open this URL in your browser: http://localhost:8000")
+            print("🌐 Open this URL in your browser: http://localhost:8000")
 
 # =================================================================
-# [4] 사용자가 호출할 범용 함수 (이름 변경!)
+# [4] 사용자가 호출할 범용 함수
 # =================================================================
 def start_bridge():
-    """
-    RobotPal 시뮬레이터 브리지를 시작합니다.
-    """
+    """RobotPal 시뮬레이터 브리지를 시작합니다."""
     bridge = RobotPalBridge()
     bridge.start()
