@@ -27,14 +27,12 @@ void SandboxScene::OnEnter()
     auto modelPrefab = AssetManager::Get().GetPrefab(m_World, "./Assets/jetank.glb");
     auto prefabEntity = CreateEntity("mainModel");
     prefabEntity.GetHandle().is_a(modelPrefab);
-    prefabEntity.SetLocalPosition(glm::vec3(0.f, 0.f, 0.7f));
+    prefabEntity.SetLocalPosition(glm::vec3(0.f, 0.f, 0.35f));
     prefabEntity.SetLocalRotation(glm::radians(glm::vec3(0.f, -90.f, 0.f)));
     
     auto modelPrefab2 = AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
-    auto prefabEntity2 = CreateEntity("mainModel2");
+    auto prefabEntity2 = CreateEntity("CarGroups");
     prefabEntity2.GetHandle().is_a(modelPrefab2);
-    prefabEntity2.SetLocalPosition({0.4f, 0.f, 0.5f});
-    prefabEntity2.SetLocalRotation(glm::radians(glm::vec3(0.f, -211.f, 0.f)));
 
     auto mapPrefab = AssetManager::Get().GetPrefab(m_World, "./Assets/map.glb");
     auto map=CreateEntity("map");
@@ -49,7 +47,7 @@ void SandboxScene::OnEnter()
     mainCam.SetLocalPosition({0.1f, 0.5f, 1.1f});
     mainCam.SetLocalRotation(glm::radians(glm::vec3(-35.f, -0.15f, 0.f)));
 
-    // camView=Framebuffer::Create(1640, 1232);
+    //camView=Framebuffer::Create(1640, 1232);
     camView=Framebuffer::Create(224, 224);
 
     auto robotCamera=CreateEntity("robotCam");
