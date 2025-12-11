@@ -2,8 +2,37 @@
 #include "RobotPal/Core/ModelLoader.h"
 #include "RobotPal/Core/ResourceID.h"
 #include <iostream>
+#include <filesystem>
+#include <algorithm> // std::replace
 #include "stb_image.h"
 
+namespace fs = std::filesystem;
+
+std::string ConvertPathToEntityName(fs::path filePath) {
+    std::string result = "";
+
+    // 1. 경로의 각 부분(폴더, 파일명)을 순회
+    // fs::path는 자동으로 OS에 맞는 구분자를 처리해서 파싱해줍니다.
+    for (const auto& part : filePath) {
+        // 2. 현재 디렉토리(".")는 이름에 포함하지 않고 건너뜀
+        // 예: "./Assets" -> "Assets"부터 시작
+        if (part == ".") continue;
+
+        // 첫 부분이 아니라면 구분자 '_' 추가
+        if (!result.empty()) {
+            result += "_";
+        }
+
+        // 경로 조각을 문자열로 붙임
+        result += part.string();
+    }
+
+    // 3. 파일 확장자의 점(.)을 포함한 모든 점을 언더바(_)로 치환
+    // 예: "Assets_jetank.glb" -> "Assets_jetank_glb"
+    std::replace(result.begin(), result.end(), '.', '_');
+
+    return result;
+}
 
 AssetManager &AssetManager::Get()
 {
@@ -47,13 +76,14 @@ ResourceID AssetManager::AddRuntimeTexture(std::shared_ptr<Texture> texture, con
     return id;
 }
 
-flecs::entity AssetManager::GetPrefab(flecs::world &ecs, const std::string &name)
+flecs::entity AssetManager::GetPrefab(flecs::world &ecs, const std::string &path)
 {
-    if (m_Prefabs.find(name) != m_Prefabs.end()) return m_Prefabs[name];
-
-    auto model=GetModel(name);
+    ResourceID id(path);
+    if (m_Prefabs.find(id) != m_Prefabs.end()) return m_Prefabs[id];
+    std::string name=ConvertPathToEntityName(path);
+    auto model=GetModel(path);
     flecs::entity prefab=PrefabFactory::CreatePrefab(ecs, name, *model);
-    m_Prefabs[name]=prefab;
+    m_Prefabs[id]=prefab;
     return prefab;
 }
 

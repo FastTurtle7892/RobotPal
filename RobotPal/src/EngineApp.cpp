@@ -24,6 +24,7 @@
 #include "RobotPal/Systems/StreamingSystemModule.h"
 #include "RobotPal/Systems/ControllerSystemModule.h"
 #include "RobotPal/Core/Texture.h"
+#include "RobotPal/Components/ComponentRegistration.h"
 
 #include <thread>
 #include <chrono>
@@ -42,6 +43,9 @@ void EngineApp::Init()
     ImGuiManager::Get().Init(m_Window->GetNativeWindow());
 
     m_SceneManager = std::make_shared<SceneManager>(m_World);
+    
+    RobotPal::register_all_components(m_World);
+
     m_SceneManager->LoadScene<SandboxScene>();
 
     m_World.set<WindowData>({ (float)1280, (float)720});
@@ -51,6 +55,14 @@ void EngineApp::Init()
     m_World.import<TransformSystemModule>();
     m_World.import<StreamingSystemModule>();
     m_World.import<ControllerSystemModule>();
+
+
+    //Preload
+    auto hdrID = AssetManager::Get().LoadTextureHDR("./Assets/parking_garage.hdr");
+    m_World.set<Skybox>({hdrID, 1.0f, 0.0f});
+
+    AssetManager::Get().GetPrefab(m_World, "./Assets/jetank.glb");
+    AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
 }
 
 void EngineApp::MainLoop()
