@@ -24,7 +24,8 @@
 #include "RobotPal/Systems/StreamingSystemModule.h"
 #include "RobotPal/Systems/ControllerSystemModule.h"
 #include "RobotPal/Core/Texture.h"
-
+#include "RobotPal/Components/ComponentRegistration.h"
+#include "RobotPal/Util/FileDialog.h"
 #include <thread>
 #include <chrono>
 
@@ -40,9 +41,12 @@ void EngineApp::Init()
     m_Window=std::make_shared<Window>(1280, 720, "RobotPal");
     m_Window->Init();
     ImGuiManager::Get().Init(m_Window->GetNativeWindow());
+    FileDialog::Instance().init();
 
-    
     m_SceneManager = std::make_shared<SceneManager>(m_World);
+    
+    RobotPal::register_all_components(m_World);
+
     m_SceneManager->LoadScene<SandboxScene>();
     
     m_World.set<WindowData>({ (float)1280, (float)720});
@@ -53,7 +57,13 @@ void EngineApp::Init()
     m_World.import<StreamingSystemModule>();
     m_World.import<ControllerSystemModule>();
 
-    m_World.progress(0.0f); // 초기화 진행
+
+    //Preload
+    auto hdrID = AssetManager::Get().LoadTextureHDR("./Assets/parking_garage.hdr");
+    m_World.set<Skybox>({hdrID, 1.0f, 0.0f});
+
+    AssetManager::Get().GetPrefab(m_World, "./Assets/jetank.glb");
+    AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
 }
 
 void EngineApp::MainLoop()
@@ -97,7 +107,12 @@ void EngineApp::MainLoop()
 
         // Start the Dear ImGui frame
         ImGuiManager::Get().NewFrame();
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImVec4 viewportRect(viewport->WorkPos.x, viewport->WorkPos.y, viewport->WorkSize.x, viewport->WorkSize.y);
+        
+        FileDialog::Instance().display(viewportRect);
 
+        FileDialog::Instance().manageGPU();
         //draw gui
         {
             m_SceneManager->OnImGuiRender();
@@ -115,6 +130,7 @@ void EngineApp::MainLoop()
 
 void EngineApp::Shutdown()
 {
+    FileDialog::Instance().unit();
     Texture::CleanUpStaticResources();
     AssetManager::Get().ClearData();
     ImGuiManager::Get().Shutdown();
