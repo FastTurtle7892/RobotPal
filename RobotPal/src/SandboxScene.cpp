@@ -8,6 +8,7 @@
 #include "RobotPal/Core/AssetManager.h"
 #include "RobotPal/Components/Components.h"
 #include "RobotPal/Network/NetworkEngine.h"
+#include "RobotPal/Util/FileDialog.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -114,7 +115,24 @@ void SandboxScene::OnImGuiRender()
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("Generated/IBL_Environment"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("IBL_BRDF_LUT"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::End();
-
+    ImGui::Begin("Load & Save Scene");
+        if (ImGui::Button("Open File Dialog")) 
+        {
+            // Open 호출: 키, 제목, 필터, 콜백함수 전달
+            FileDialog::Instance().Open(
+                "MyFileOpenKey", 
+                "Choose a File", 
+                ".cpp,.h,.txt,.png,.glb", 
+                [](const FileData& data) {
+                    // [콜백] 파일 선택이 완료(Desktop)되거나 업로드(Web)되면 실행됩니다.
+                    printf("File Selected: %s\n", data.fileName.c_str());
+                    printf("Content Size: %lu bytes\n", data.content.size());
+                    
+                    // 여기서 data.content를 가지고 모델을 로드하거나 텍스처를 만드시면 됩니다.
+                }
+            );
+        }
+    ImGui::End();
     ImGui::Begin("robotCam");
     ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(400, 400), ImVec2(0, 0), ImVec2(1, -1));
     ImGui::End();

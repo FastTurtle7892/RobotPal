@@ -28,6 +28,8 @@ if(EMSCRIPTEN)
         "-lwebsocket.js"
         "--use-preload-plugins"
         "SHELL:-sSTACK_SIZE=8388608"
+        "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8]"
+        "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]"
     )
 endif()
 
@@ -64,6 +66,19 @@ add_library(imgui STATIC
 )
 target_include_directories(imgui PUBLIC ${imgui_external_SOURCE_DIR} ${imgui_external_SOURCE_DIR}/backends/)
 
+FetchContent_Declare(imgui_file_dialog_external
+    GIT_REPOSITORY "https://github.com/aiekick/ImGuiFileDialog.git"
+    GIT_TAG "v0.6.8"
+    GIT_SHALLOW 1
+    EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(imgui_file_dialog_external)
+
+add_library(imgui_file_dialog STATIC
+    ${imgui_file_dialog_external_SOURCE_DIR}/ImGuiFileDialog.cpp
+)
+target_include_directories(imgui_file_dialog PUBLIC ${imgui_file_dialog_external_SOURCE_DIR})
+target_link_libraries(imgui_file_dialog PRIVATE imgui)
 # Draco 및 기타 라이브러리
 set(DRACO_TESTS OFF CACHE BOOL "" FORCE)
 set(DRACO_JS_GLUE OFF CACHE BOOL "" FORCE)
@@ -158,7 +173,7 @@ target_link_libraries(RobotPal PRIVATE nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)
     # Emscripten 라이브러리 링크
     target_link_libraries(imgui PRIVATE glfw)
-    target_link_libraries(RobotPal PRIVATE glfw imgui)
+    target_link_libraries(RobotPal PRIVATE glfw imgui imgui_file_dialog)
 
     # 에셋 프리로딩 설정 (ASSET_DIR 변수가 필요하므로 여기서 설정)
     target_link_options(RobotPal PRIVATE
@@ -197,7 +212,7 @@ else()
 
     target_link_libraries(RobotPal PRIVATE Threads::Threads)
     target_link_libraries(imgui PRIVATE glfw OpenGL::GL)
-    target_link_libraries(RobotPal PRIVATE glfw OpenGL::GL imgui)
+    target_link_libraries(RobotPal PRIVATE glfw OpenGL::GL imgui imgui_file_dialog)
 
     add_custom_command(TARGET RobotPal POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory

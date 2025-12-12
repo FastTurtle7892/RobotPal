@@ -28,7 +28,7 @@ void SceneSerializer::save(const std::string& filepath) {
     // desc.dont_serialize_results=false;
     // desc.serialize_inherited=true;
     
-    std::string json_data = m_World.to_json();  //q.iter().to_json(&desc);
+    std::string json_data = m_World.to_json().c_str();  //q.iter().to_json(&desc);
     //json_data=json::parse(json_data).dump(4);
 
 
