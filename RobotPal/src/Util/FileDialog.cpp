@@ -50,6 +50,25 @@ void FileDialog::Open(const std::string& key, const std::string& title, const st
 #endif
 }
 
+void FileDialog::Save(const std::string &key, const std::string &title, const std::string &filters, const std::string &defaultName, const std::string &content)
+{
+#ifdef __EMSCRIPTEN__
+    // Web: 다이얼로그 없이 바로 다운로드 트리거
+    emscripten_browser_file::download(defaultName, "text/plain", content);
+#else
+    // Desktop: 저장 다이얼로그 열기
+    m_contentToSave = content; // 저장할 내용을 멤버 변수에 임시 저장
+    m_mode = Mode::Save;       // 모드 변경
+    
+    IGFD::FileDialogConfig config;
+    config.path = ".";
+    config.filePathName = defaultName; // 기본 파일명 설정
+    
+    ImGuiFileDialog::Instance()->OpenDialog(key, title, filters.c_str(), config);
+    m_currentKey = key;
+#endif
+}
+
 void FileDialog::display(const ImVec4& viewportRect) {
 #ifdef __EMSCRIPTEN__
     // --- Web Implementation ---
@@ -81,25 +100,40 @@ void FileDialog::display(const ImVec4& viewportRect) {
     if (ImGuiFileDialog::Instance()->Display(m_currentKey.c_str())) {
         
         if (ImGuiFileDialog::Instance()->IsOk()) {
-            if (m_callback) {
-                FileData data;
-                data.filePath = ImGuiFileDialog::Instance()->GetFilePathName();
-                data.fileName = ImGuiFileDialog::Instance()->GetCurrentFileName();
-                
-                // 파일 내용 읽기 (Web과 API 통일을 위해)
-                std::ifstream file(data.filePath, std::ios::binary);
-                if (file) {
-                    std::stringstream buffer;
-                    buffer << file.rdbuf();
-                    data.content = buffer.str();
+            std::string filePath = ImGuiFileDialog::Instance()->GetFilePathName();
+            
+            if (m_mode == Mode::Open) {
+                // [Open 모드] 기존 로직: 파일을 읽어서 콜백 호출
+                if (m_callback) {
+                    FileData data;
+                    data.filePath = filePath;
+                    data.fileName = ImGuiFileDialog::Instance()->GetCurrentFileName();
+                    
+                    std::ifstream file(filePath, std::ios::binary);
+                    if (file) {
+                        std::stringstream buffer;
+                        buffer << file.rdbuf();
+                        data.content = buffer.str();
+                    }
+                    m_callback(data);
                 }
-                
-                m_callback(data);
+            } 
+            else if (m_mode == Mode::Save) {
+                // [Save 모드] 추가 로직: m_contentToSave를 파일에 쓰기
+                std::ofstream file(filePath);
+                if (file.is_open()) {
+                    file << m_contentToSave;
+                    file.close();
+                    std::cout << "[FileDialog] Saved to " << filePath << std::endl;
+                } else {
+                    std::cerr << "[FileDialog] Failed to save file." << std::endl;
+                }
+                m_contentToSave.clear(); // 내용 비우기
             }
         }
         
         ImGuiFileDialog::Instance()->Close();
-        m_callback = nullptr; // 콜백 해제
+        m_callback = nullptr;
     }
 #endif
 }

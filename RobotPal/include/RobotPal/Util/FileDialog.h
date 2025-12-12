@@ -31,9 +31,9 @@ public:
     void manageGPU();
     
     // --- Main Logic ---
-    // 파일 열기 요청
     void Open(const std::string& key, const std::string& title, const std::string& filters, OnFileLoaded callback);
-
+    void Save(const std::string& key, const std::string& title, const std::string& filters, 
+              const std::string& defaultName, const std::string& content);
     // 화면 렌더링 및 업데이트
     void display(const ImVec4& viewportRect);
 
@@ -41,10 +41,12 @@ private:
     OnFileLoaded m_callback = nullptr;
     float m_scaleFactor = 1.0f;
     std::string m_currentKey;
+    
+    enum class Mode { Open, Save };
+    Mode m_mode = Mode::Open;
+    std::string m_contentToSave; // 저장할 내용 임시 보관
 
     // --- Web Specific State ---
-    // Web 환경 변수들은 컴파일 에러 방지를 위해 ifdef를 쓰지 않고
-    // 일반 변수로 두거나, pImpl 패턴을 쓰지만 여기선 간단히 둡니다.
 #ifdef __EMSCRIPTEN__
     bool m_webFileReady = false;
     FileData m_webFileData;

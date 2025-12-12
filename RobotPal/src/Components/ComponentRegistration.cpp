@@ -52,6 +52,7 @@ void register_all_components(flecs::world& world) {
         .member<float>("x")
         .member<float>("y")
         .member<float>("z");
+        
     world.component<Scale>()
         .member<float>("x")
         .member<float>("y")

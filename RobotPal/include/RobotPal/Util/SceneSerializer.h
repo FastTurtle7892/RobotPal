@@ -11,6 +11,9 @@ public:
     void save(const std::string& filepath);
     void load(const std::string& filepath);
 
+    std::string SerializeToString(); 
+    void DeserializeFromString(const std::string& data);
+
 private:
     void clearSceneEntities();
     void reparentSceneEntities(const std::string& json_data);

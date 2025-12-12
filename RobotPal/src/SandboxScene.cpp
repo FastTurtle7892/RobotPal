@@ -9,6 +9,7 @@
 #include "RobotPal/Components/Components.h"
 #include "RobotPal/Network/NetworkEngine.h"
 #include "RobotPal/Util/FileDialog.h"
+#include "RobotPal/Util/SceneSerializer.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -116,22 +117,36 @@ void SandboxScene::OnImGuiRender()
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("IBL_BRDF_LUT"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::End();
     ImGui::Begin("Load & Save Scene");
-        if (ImGui::Button("Open File Dialog")) 
-        {
-            // Open 호출: 키, 제목, 필터, 콜백함수 전달
-            FileDialog::Instance().Open(
-                "MyFileOpenKey", 
-                "Choose a File", 
-                ".cpp,.h,.txt,.png,.glb", 
-                [](const FileData& data) {
-                    // [콜백] 파일 선택이 완료(Desktop)되거나 업로드(Web)되면 실행됩니다.
-                    printf("File Selected: %s\n", data.fileName.c_str());
-                    printf("Content Size: %lu bytes\n", data.content.size());
-                    
-                    // 여기서 data.content를 가지고 모델을 로드하거나 텍스처를 만드시면 됩니다.
-                }
-            );
-        }
+    // [LOAD 버튼]
+    if (ImGui::Button("Load Scene (.robotpal)")) {
+        FileDialog::Instance().Open(
+            "SceneLoadKey", 
+            "Load Scene", 
+            ".robotpal",  // [변경] 확장자 필터
+            [&](const FileData& data) {
+                // 원본 문자열 그대로 로드
+                m_Serializer->DeserializeFromString(data.content);
+                std::cout << "Scene Loaded: " << data.fileName << std::endl;
+            }
+        );
+    }
+
+    ImGui::SameLine();
+
+    // [SAVE 버튼]
+    if (ImGui::Button("Save Scene (.robotpal)")) {
+        // 1. 포매팅 없는 Raw String 가져오기
+        std::string rawSceneData = m_Serializer->SerializeToString();
+        
+        // 2. 저장 요청
+        FileDialog::Instance().Save(
+            "SceneSaveKey", 
+            "Save Scene", 
+            ".robotpal",           // [변경] 확장자 필터
+            "MyScene.robotpal",    // [변경] 기본 파일명
+            rawSceneData           // 내용 전달
+        );
+    }
     ImGui::End();
     ImGui::Begin("robotCam");
     ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(400, 400), ImVec2(0, 0), ImVec2(1, -1));
