@@ -20,9 +20,9 @@ if(EMSCRIPTEN)
     # 3. 링크 옵션 (전역 설정)
     # 스레드 풀 사이즈, 웹소켓 등 링커에게 필요한 정보를 미리 줍니다.
     add_link_options(
-        #"-pthread"
+        "-pthread"
         "-sALLOW_MEMORY_GROWTH=1"
-        #"-sPTHREAD_POOL_SIZE=3"   # 스레드 풀
+        "-sPTHREAD_POOL_SIZE=8"   # 스레드 풀
         "-sUSE_GLFW=3"
         "-sFULL_ES3=1"
         "-lwebsocket.js"
@@ -73,16 +73,14 @@ FetchContent_Declare(imgui_file_dialog_external
     GIT_SHALLOW 1
     EXCLUDE_FROM_ALL
 )
-FetchContent_MakeAvailable(imgui_file_dialog_external)
-
-
-
+FetchContent_Populate(imgui_file_dialog_external)
 
 add_library(imgui_file_dialog STATIC
     ${imgui_file_dialog_external_SOURCE_DIR}/ImGuiFileDialog.cpp
 )
 target_include_directories(imgui_file_dialog PUBLIC ${imgui_file_dialog_external_SOURCE_DIR})
-target_link_libraries(imgui_file_dialog PRIVATE imgui)
+target_link_libraries(imgui_file_dialog PUBLIC imgui)
+
 # Draco 및 기타 라이브러리
 set(DRACO_TESTS OFF CACHE BOOL "" FORCE)
 set(DRACO_JS_GLUE OFF CACHE BOOL "" FORCE)
