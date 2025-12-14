@@ -78,7 +78,33 @@ add_library(imgui_file_dialog STATIC
     ${imgui_file_dialog_external_SOURCE_DIR}/ImGuiFileDialog.cpp
 )
 target_include_directories(imgui_file_dialog PUBLIC ${imgui_file_dialog_external_SOURCE_DIR})
-target_link_libraries(imgui_file_dialog PRIVATE imgui)
+target_link_libraries(imgui_file_dialog PUBLIC imgui)
+
+
+FetchContent_Declare(imgui_guizmo_external
+    GIT_REPOSITORY "https://github.com/CedricGuillemet/ImGuizmo.git"
+    GIT_SHALLOW 1
+    EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(imgui_guizmo_external)
+
+add_library(imgui_guizmo STATIC
+    ${imgui_guizmo_external_SOURCE_DIR}/GraphEditor.cpp
+    ${imgui_guizmo_external_SOURCE_DIR}/GraphEditor.h
+    ${imgui_guizmo_external_SOURCE_DIR}/ImCurveEdit.cpp
+    ${imgui_guizmo_external_SOURCE_DIR}/ImCurveEdit.h
+    ${imgui_guizmo_external_SOURCE_DIR}/ImGradient.cpp
+    ${imgui_guizmo_external_SOURCE_DIR}/ImGradient.h
+    ${imgui_guizmo_external_SOURCE_DIR}/ImGuizmo.cpp
+    ${imgui_guizmo_external_SOURCE_DIR}/ImGuizmo.h
+    ${imgui_guizmo_external_SOURCE_DIR}/ImSequencer.cpp
+    ${imgui_guizmo_external_SOURCE_DIR}/ImSequencer.h
+    ${imgui_guizmo_external_SOURCE_DIR}/ImZoomSlider.h
+)
+
+target_include_directories(imgui_guizmo PUBLIC ${imgui_guizmo_external_SOURCE_DIR})
+target_link_libraries(imgui_guizmo PUBLIC imgui)
+
 # Draco 및 기타 라이브러리
 set(DRACO_TESTS OFF CACHE BOOL "" FORCE)
 set(DRACO_JS_GLUE OFF CACHE BOOL "" FORCE)
@@ -173,7 +199,7 @@ target_link_libraries(RobotPal PRIVATE nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)
     # Emscripten 라이브러리 링크
     target_link_libraries(imgui PRIVATE glfw)
-    target_link_libraries(RobotPal PRIVATE glfw imgui imgui_file_dialog)
+    target_link_libraries(RobotPal PRIVATE glfw imgui imgui_file_dialog imgui_guizmo)
 
     # 에셋 프리로딩 설정 (ASSET_DIR 변수가 필요하므로 여기서 설정)
     target_link_options(RobotPal PRIVATE
@@ -212,7 +238,7 @@ else()
 
     target_link_libraries(RobotPal PRIVATE Threads::Threads)
     target_link_libraries(imgui PRIVATE glfw OpenGL::GL)
-    target_link_libraries(RobotPal PRIVATE glfw OpenGL::GL imgui imgui_file_dialog)
+    target_link_libraries(RobotPal PRIVATE glfw OpenGL::GL imgui imgui_file_dialog imgui_guizmo)
 
     add_custom_command(TARGET RobotPal POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory

@@ -44,13 +44,13 @@ void SandboxScene::OnEnter()
     // auto tile=CreateEntity("tile");
     // tile.GetHandle().is_a(tilePrefab);
 
-    auto mainCam=CreateEntity("mainCam");
+    auto mainCam=CreateEntity("MainCamera");
     mainCam.Set<Camera>({});
-    mainCam.SetLocalPosition({0.1f, 0.5f, 1.1f});
+    mainCam.SetLocalPosition({0.0f, 0.5f, 1.1f});
     mainCam.SetLocalRotation(glm::radians(glm::vec3(-35.f, -0.15f, 0.f)));
 
-    camView=Framebuffer::Create(1640*2, 1232*2);
-    //camView=Framebuffer::Create(224, 224);
+    //camView=Framebuffer::Create(1640*2, 1232*2);
+    camView=Framebuffer::Create(224, 224);
 
     auto robotCamera=CreateEntity("robotCam");
 #ifdef __EMSCRIPTEN__

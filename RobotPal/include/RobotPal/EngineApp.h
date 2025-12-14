@@ -6,6 +6,7 @@
 
 class Window;
 class SceneManager;
+class EditorLayer;
 
 class EngineApp
 {
@@ -19,6 +20,7 @@ private:
     void Shutdown();
     
     float m_LastFrameTime;
+    std::shared_ptr<EditorLayer> m_EditorLayer;
     std::shared_ptr<SceneManager> m_SceneManager;
     std::shared_ptr<Window> m_Window;
     
