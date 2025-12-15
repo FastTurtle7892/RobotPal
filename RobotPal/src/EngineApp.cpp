@@ -7,6 +7,7 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "ImGuizmo.h"
 #include <GLFW/glfw3.h>
 #include <glad/gles2.h>
 
@@ -26,6 +27,7 @@
 #include "RobotPal/Core/Texture.h"
 #include "RobotPal/Components/ComponentRegistration.h"
 #include "RobotPal/Util/FileDialog.h"
+#include "RobotPal/EditorLayer.h"
 #include <thread>
 #include <chrono>
 
@@ -42,6 +44,9 @@ void EngineApp::Init()
     m_Window->Init();
     ImGuiManager::Get().Init(m_Window->GetNativeWindow());
     FileDialog::Instance().init();
+
+    m_EditorLayer = std::make_shared<EditorLayer>(m_World);
+    m_EditorLayer->Init();
 
     m_SceneManager = std::make_shared<SceneManager>(m_World);
     
@@ -69,7 +74,8 @@ void EngineApp::Init()
 void EngineApp::MainLoop()
 {
     m_LastFrameTime=(float)glfwGetTime();
-    glm::vec4 clear_color = {0.45f, 0.55f, 0.60f, 1.00f};
+    //glm::vec4 clear_color = {0.45f, 0.55f, 0.60f, 1.00f};
+    glm::vec4 clear_color = {0.1f, 0.1f, 0.1f, 1.00f};
 
     RenderCommand::Init(); 
 #ifdef __EMSCRIPTEN__
@@ -107,6 +113,7 @@ void EngineApp::MainLoop()
 
         // Start the Dear ImGui frame
         ImGuiManager::Get().NewFrame();
+        ImGuizmo::BeginFrame();
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImVec4 viewportRect(viewport->WorkPos.x, viewport->WorkPos.y, viewport->WorkSize.x, viewport->WorkSize.y);
         
@@ -115,6 +122,7 @@ void EngineApp::MainLoop()
         FileDialog::Instance().manageGPU();
         //draw gui
         {
+            m_EditorLayer->OnImGuiRender();
             m_SceneManager->OnImGuiRender();
         }
 

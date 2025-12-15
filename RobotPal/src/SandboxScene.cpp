@@ -46,9 +46,9 @@ void SandboxScene::OnEnter()
     // auto tile=CreateEntity("tile");
     // tile.GetHandle().is_a(tilePrefab);
 
-    auto mainCam=CreateEntity("mainCam");
+    auto mainCam=CreateEntity("MainCamera");
     mainCam.Set<Camera>({});
-    mainCam.SetLocalPosition({0.1f, 0.5f, 1.1f});
+    mainCam.SetLocalPosition({0.0f, 0.5f, 1.1f});
     mainCam.SetLocalRotation(glm::radians(glm::vec3(-35.f, -0.15f, 0.f)));
 
     camView=Framebuffer::Create(cam_W, cam_H);
@@ -97,10 +97,10 @@ void SandboxScene::OnUpdate(float dt)
     GLFWwindow* window = glfwGetCurrentContext();
     float speed = 1.0f; 
     float turn_speed = 2.5f;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) v = speed;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) v = -speed;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) w = turn_speed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) w = -turn_speed;
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) v = speed;
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) v = -speed;
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) w = turn_speed;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) w = -turn_speed;
 
     g_Controller->Move(v, w);
     g_Controller->Update(dt);
@@ -118,38 +118,7 @@ void SandboxScene::OnImGuiRender()
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("Generated/IBL_Environment"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("IBL_BRDF_LUT"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::End();
-    ImGui::Begin("Load & Save Scene");
-    // [LOAD 버튼]
-    if (ImGui::Button("Load Scene (.robotpal)")) {
-        FileDialog::Instance().Open(
-            "SceneLoadKey", 
-            "Load Scene", 
-            ".robotpal",  // [변경] 확장자 필터
-            [&](const FileData& data) {
-                // 원본 문자열 그대로 로드
-                m_Serializer->DeserializeFromString(data.content);
-                std::cout << "Scene Loaded: " << data.fileName << std::endl;
-            }
-        );
-    }
-
-    ImGui::SameLine();
-
-    // [SAVE 버튼]
-    if (ImGui::Button("Save Scene (.robotpal)")) {
-        // 1. 포매팅 없는 Raw String 가져오기
-        std::string rawSceneData = m_Serializer->SerializeToString();
-        
-        // 2. 저장 요청
-        FileDialog::Instance().Save(
-            "SceneSaveKey", 
-            "Save Scene", 
-            ".robotpal",           // [변경] 확장자 필터
-            "MyScene.robotpal",    // [변경] 기본 파일명
-            rawSceneData           // 내용 전달
-        );
-    }
-    ImGui::End();
+    
     ImGui::Begin("robotCam");
     ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(cam_W, cam_H), ImVec2(0, 0), ImVec2(1, -1));
     ImGui::End();
