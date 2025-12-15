@@ -132,6 +132,7 @@ void EditorLayer::DrawViewport() {
         auto textureID = m_ViewportFBO->GetColorAttachment()->GetID();
         ImGui::Image(reinterpret_cast<void*>(textureID), viewportPanelSize, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
 
+        UpdateCameraMovement(cameraEnt);
         // C. 기즈모 그리기
         DrawGizmo(cameraEnt);
     } 
@@ -265,6 +266,72 @@ static glm::mat4 CreateViewMatrixFromWorld(const glm::mat4 &worldMatrix)
     // 마지막 3,3은 1.0f (초기화시 설정됨)
 
     return view;
+}
+
+void EditorLayer::UpdateCameraMovement(flecs::entity cameraEnt) {
+    // 1. 뷰포트가 포커스되거나 호버링 상태일 때만 작동
+    if (!m_ViewportHovered && !m_ViewportFocused) return;
+    if (cameraEnt == flecs::entity::null() || !cameraEnt.is_alive()) return;
+
+    // 2. 카메라 컴포넌트 가져오기 (Local 좌표 기준 수정)
+    auto* pos = cameraEnt.try_get_mut<Position, Local>();
+    auto* rot = cameraEnt.try_get_mut<Rotation, Local>();
+    auto* matrix = cameraEnt.try_get<TransformMatrix, World>();
+
+    if (!pos || !rot || !matrix) return;
+
+    ImGuiIO& io = ImGui::GetIO();
+    
+    // 3. 마우스 델타값 (이번 프레임 이동량)
+    float deltaX = io.MouseDelta.x;
+    float deltaY = io.MouseDelta.y;
+
+    // --- 카메라 축 벡터 추출 (World Matrix의 열벡터) ---
+    // Col 0: Right, Col 1: Up, Col 2: Backward (Forward = -Col2)
+    glm::mat4 view = *matrix; 
+    glm::vec3 right = glm::normalize(glm::vec3(view[0])); 
+    glm::vec3 up    = glm::normalize(glm::vec3(view[1])); 
+    glm::vec3 forward = -glm::normalize(glm::vec3(view[2])); 
+
+    // -----------------------------------------------------------
+    // [모드 1] Fly Mode: 마우스 오른쪽 버튼(RMB) 홀드 시 (Unity 스타일)
+    // -----------------------------------------------------------
+    if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+        // 1. 시점 회전 (Look)
+        float sensitivity = 0.003f;
+        rot->y -= io.MouseDelta.x * sensitivity; // Yaw
+        rot->x -= io.MouseDelta.y * sensitivity; // Pitch
+        rot->x = glm::clamp(rot->x, -1.57f, 1.57f); // 90도 제한
+
+        // 2. WASD 이동 (Move)
+        float speed = 5.0f * m_World.delta_time(); // 기본 속도
+        if (io.KeyShift) speed *= 3.0f; // Shift 누르면 부스트 (빠른 이동)
+
+        if (ImGui::IsKeyDown(ImGuiKey_W)) *pos += forward * speed;
+        if (ImGui::IsKeyDown(ImGuiKey_S)) *pos -= forward * speed;
+        if (ImGui::IsKeyDown(ImGuiKey_A)) *pos -= right * speed;
+        if (ImGui::IsKeyDown(ImGuiKey_D)) *pos += right * speed;
+        if (ImGui::IsKeyDown(ImGuiKey_Q)) *pos -= glm::vec3(0,1,0) * speed; // 하강 (World Up)
+        if (ImGui::IsKeyDown(ImGuiKey_E)) *pos += glm::vec3(0,1,0) * speed; // 상승 (World Up)
+
+        // *중요* 우클릭 중에는 ImGuizmo나 다른 UI와 상호작용 안 하도록 처리 필요할 수 있음
+    }
+    // -----------------------------------------------------------
+    // [모드 2] Pan & Zoom: 평상시 (우클릭 안 누를 때)
+    // -----------------------------------------------------------
+    else {
+        // Pan (휠 클릭 드래그)
+        if (ImGui::IsMouseDragging(ImGuiMouseButton_Middle)) {
+             float panSpeed = 0.008f; // 거리 비례 계산하면 더 좋음
+             *pos += (-right * io.MouseDelta.x * panSpeed) + (up * io.MouseDelta.y * panSpeed);
+        }
+
+        // Zoom (휠 스크롤)
+        if (io.MouseWheel != 0.0f) {
+            float zoomSpeed = 1.0f;
+            *pos += forward * io.MouseWheel * zoomSpeed;
+        }
+    }
 }
 
 void EditorLayer::DrawGizmo(flecs::entity cameraEnt) {
@@ -481,6 +548,12 @@ void EditorLayer::DrawMenuBar() {
 }
 
 void EditorLayer::HandleShortcuts() {
+    // 우클릭(카메라 이동) 중일 때는 단축키 처리를 하지 않음
+    if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) return;
+    
+    // 만약 텍스트 입력창(Inspector 등)을 쓰고 있다면 단축키 무시 (선택사항, 권장)
+    if (ImGui::GetIO().WantCaptureKeyboard) return;
+    
     //if (m_ViewportFocused) 
     {
         // [Q] 선택 모드 (기즈모 끄기)

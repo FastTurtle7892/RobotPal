@@ -28,8 +28,10 @@ private:
     void DrawSceneHierarchy();// Entity List
     void DrawEntityNode(flecs::entity e);
     void DrawProperties();    // Inspector
+
     
     // --- 기능 ---
+    void UpdateCameraMovement(flecs::entity cameraEnt);
     void DrawGizmo(flecs::entity cameraEnt);
     void HandleShortcuts();
     
@@ -55,4 +57,7 @@ private:
 
     // Gizmo Operation (ImGuizmo::TRANSLATE, ROTATE, SCALE)
     int m_GizmoOperation = -1; 
+
+    float m_CamSpeed = 0.005f;      // 이동/Zoom 속도 계수
+    float m_RotationSpeed = 0.005f; // 회전 속도
 };
