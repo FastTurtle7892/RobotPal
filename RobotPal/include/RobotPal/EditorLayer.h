@@ -24,6 +24,7 @@ private:
     void DrawDockSpace();
     void DrawMenuBar();
     void DrawViewport();      // Game View
+    void DrawRobotView();
     void DrawSceneHierarchy();// Entity List
     void DrawEntityNode(flecs::entity e);
     void DrawProperties();    // Inspector

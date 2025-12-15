@@ -27,6 +27,7 @@ void EditorLayer::OnImGuiRender() {
 
     DrawMenuBar();
     DrawViewport();
+    DrawRobotView();
     DrawSceneHierarchy();
     DrawProperties();
     
@@ -71,12 +72,17 @@ void EditorLayer::DrawDockSpace() {
             ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
 
             ImGuiID dock_main_id = dockspace_id;
-            ImGuiID dock_right = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.25f, nullptr, &dock_main_id);
-            ImGuiID dock_left = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
+            ImGuiID dock_right_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.3f, nullptr, &dock_main_id);
+            ImGuiID dock_left_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
+            ImGuiID dock_bottom_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.25f, nullptr, &dock_main_id);
+            ImGuiID dock_right_down_id = ImGui::DockBuilderSplitNode(dock_right_id, ImGuiDir_Down, 0.4f, nullptr, &dock_right_id);
 
             ImGui::DockBuilderDockWindow("Viewport", dock_main_id);
-            ImGui::DockBuilderDockWindow("Properties", dock_right);
-            ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left);
+            ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left_id);
+            ImGui::DockBuilderDockWindow("Properties", dock_right_id);
+            ImGui::DockBuilderDockWindow("Content Browser", dock_bottom_id);
+            
+            ImGui::DockBuilderDockWindow("Robot View", dock_right_down_id);
             ImGui::DockBuilderFinish(dockspace_id);
         }
     }
@@ -150,6 +156,51 @@ void EditorLayer::DrawViewport() {
 
     ImGui::End();
     ImGui::PopStyleVar();
+}
+
+void EditorLayer::DrawRobotView() {
+    ImGui::Begin("Robot View");
+
+    flecs::entity robotCam = flecs::entity::null();
+
+    m_World.query<RenderTarget>()
+    .each([&](flecs::entity e, const RenderTarget& rt) {
+        if (e.name() == "RobotCamera") {
+            robotCam = e;
+        }
+    });
+
+    if(robotCam==flecs::entity::null() || !robotCam.is_alive()|| !robotCam.has<Camera>())
+    {
+        ImGui::End();
+        return;
+    }
+
+    RenderTarget* rt = robotCam.try_get_mut<RenderTarget>();
+
+    if (rt && rt->fbo) {
+        ImVec2 panelSize = ImGui::GetContentRegionAvail();
+        uint64_t texID = rt->fbo->GetColorAttachment()->GetID();
+
+        if (panelSize.x > 0 && panelSize.y > 0) {
+
+            ImGui::Image((void*)(intptr_t)texID, panelSize, ImVec2(0, 1), ImVec2(1, 0));
+        }
+    } 
+    else {
+        const char* text = "No Robot Camera Signal";
+        ImVec2 windowSize = ImGui::GetWindowSize();
+        ImVec2 textSize = ImGui::CalcTextSize(text);
+
+        ImGui::SetCursorPos(ImVec2((windowSize.x - textSize.x) * 0.5f, (windowSize.y - textSize.y) * 0.5f));
+        ImGui::TextDisabled("%s", text);
+
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Entity 'RobotCamera' with 'RenderTarget' component is required.");
+        }
+    }
+
+    ImGui::End();
 }
 
 static glm::mat4 CreateViewMatrixFromWorld(const glm::mat4 &worldMatrix)

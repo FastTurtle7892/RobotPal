@@ -54,7 +54,7 @@ void SandboxScene::OnEnter()
     camView=Framebuffer::Create(cam_W, cam_H);
     // camView=Framebuffer::Create(224, 224);
 
-    auto robotCamera=CreateEntity("robotCam");
+    auto robotCamera=CreateEntity("RobotCamera");
 #ifdef __EMSCRIPTEN__
     // Web 환경: WebSocket
     robotCamera.Set<Camera>({160.f, 0.01f, 1000.f, true})
@@ -118,8 +118,8 @@ void SandboxScene::OnImGuiRender()
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("Generated/IBL_Environment"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("IBL_BRDF_LUT"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::End();
-    ImGui::Begin("robotCam");
-    ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(cam_W, cam_H), ImVec2(0, 0), ImVec2(1, -1));
-    ImGui::End();
+    // ImGui::Begin("robotCam");
+    // ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(cam_W, cam_H), ImVec2(0, 0), ImVec2(1, -1));
+    // ImGui::End();
     
 }
