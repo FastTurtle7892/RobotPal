@@ -22,4 +22,9 @@ private:
     std::shared_ptr<Scene> m_NextScene;
 };
 
+struct SceneManagerHandle
+{    
+    SceneManager* instance=nullptr;   
+};
+
 #endif

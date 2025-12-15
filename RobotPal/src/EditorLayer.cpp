@@ -2,7 +2,8 @@
 #include "RobotPal/Components/Components.h"
 #include "RobotPal/Util/SceneSerializer.h"
 #include "RobotPal/Util/FileDialog.h"
-
+#include "RobotPal/SandboxScene.h"
+#include "RobotPal/SceneManager.h"
 #include <imgui.h>
 #include <imgui_internal.h> // DockBuilder
 #include <ImGuizmo.h>
@@ -417,7 +418,14 @@ void EditorLayer::DrawMenuBar() {
             if (ImGui::MenuItem("Scale", "R")) m_GizmoOperation = ImGuizmo::SCALE;
             ImGui::EndMenu();
         }
+
+        ImGui::Button("Reset Scene");
+        if(ImGui::IsItemClicked())
+        {
+           m_World.get_mut<const SceneManagerHandle>().instance->LoadScene<SandboxScene>();
+        }
         ImGui::EndMenuBar();
+
     }
 }
 

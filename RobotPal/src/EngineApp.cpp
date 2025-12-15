@@ -53,7 +53,7 @@ void EngineApp::Init()
     RobotPal::register_all_components(m_World);
 
     m_SceneManager->LoadScene<SandboxScene>();
-
+    
     m_World.set<WindowData>({ (float)1280, (float)720});
 
     m_World.import<NetworkEngine>();

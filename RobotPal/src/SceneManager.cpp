@@ -1,7 +1,10 @@
 #include "RobotPal/SceneManager.h"
 
 SceneManager::SceneManager(flecs::world &world)
-    : m_World(world) {}
+    : m_World(world) {
+    
+    m_World.set<SceneManagerHandle>(SceneManagerHandle{this});
+}
 
 void SceneManager::OnUpdate(float dt)
 {
