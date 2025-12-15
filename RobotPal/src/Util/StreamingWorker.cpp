@@ -45,6 +45,7 @@ StreamingPipeline::StreamingPipeline(flecs::world& world) {
     m_networkEngine = handle.instance;
 
     auto cfg = GetStreamingThreadConfig();
+    std::cout << cfg.encodeWorkers << " encode workers, asyncSend=" << cfg.asyncSend << std::endl;
     m_isRunning.store(true);
 
     // Encode workers

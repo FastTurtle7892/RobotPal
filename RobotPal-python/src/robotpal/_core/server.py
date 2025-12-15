@@ -198,28 +198,23 @@ class SimulatorServer(SingletonConfigurable):
     # ==========================================================
     def send_command(self, cmd_dict):
         msg = json.dumps(cmd_dict)
-        
-        # [수정] 공통 패킷 생성 (헤더 + 데이터)
-        data_bytes = msg.encode('utf-8')
-        header = struct.pack('<L', len(data_bytes))
-        payload = header + data_bytes  # 4바이트 길이 정보 + 실제 JSON 데이터
-
-        # 1. WebSocket 전송 (수정됨)
+        # 1. WebSocket 우선 전송
         if self.active_ws and self.loop:
+            payload = msg.encode('utf-8')
+            header = struct.pack('<I', len(payload))
+            packet = header + payload
             asyncio.run_coroutine_threadsafe(
-                # 문자열 msg 대신 바이너리 payload를 전송해야 함
-                self.active_ws.send(payload), self.loop
+                self.active_ws.send(packet), self.loop
             )
 
-        # 2. TCP 전송 (기존 로직 유지하되 payload 변수 활용 가능)
+        # 2. TCP 전송 (헤더 포함)
         elif self.active_tcp_writer and self.loop:
-            # 기존 코드:
-            # data_bytes = msg.encode('utf-8')
-            # header = struct.pack('<L', len(data_bytes))
-            
+            data_bytes = msg.encode('utf-8')
+            header = struct.pack('<L', len(data_bytes))
+
             def tcp_send():
                 if self.active_tcp_writer and not self.active_tcp_writer.is_closing():
-                    self.active_tcp_writer.write(payload) # 위에서 만든 payload 사용
+                    self.active_tcp_writer.write(header + data_bytes)
 
             self.loop.call_soon_threadsafe(tcp_send)
 
@@ -237,6 +232,7 @@ class SimulatorServer(SingletonConfigurable):
             "left": self.motor_states[1],
             "right": self.motor_states[2]
         }
+        
         self.send_command(payload)
 
     def update_servo_value(self, servo_id, angle, speed):
@@ -252,6 +248,7 @@ class SimulatorServer(SingletonConfigurable):
             "angle": float(angle),
             "speed": float(speed)
         }
+        print(f"[Send Servo] ID: {servo_id}, Angle: {angle}, Speed: {speed}")
         self.send_command(payload)
 
 

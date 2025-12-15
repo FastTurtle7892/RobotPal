@@ -111,15 +111,15 @@ void ControllerSystemModule::RegisterSystem(flecs::world &world)
                 DriveCommand driveCmd{};
                 ServoCommnad servoCmd{};
                 CommandType type = ParseJson(*packetOpt, &driveCmd, &servoCmd);
-
+                std::cout << "[Controller] Received Command Type: " << static_cast<int>(type) << "\n";
+                std::cout << "[Controller] Drive Command - Left: " << driveCmd.left << ", Right: " << driveCmd.right << "\n";
                 if (type == CommandType::Drive) {
                     m_LastDriveCmd = driveCmd;
                     m_HasLastDriveCmd = true;
                 }
                 else if (type == CommandType::Servo) {
                     m_LastServoCmds[servoCmd.id] = servoCmd;
-                    // 디버깅용: 패킷 수신 확인
-                    // std::cout << "CMD Recv: ID " << servoCmd.id << " -> " << servoCmd.angle << "\n";
+                    // 디버깅용: 패킷 수신 확인                
                 }
                 packetOpt = netEngine->GetPacket();
             }
