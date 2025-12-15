@@ -113,8 +113,9 @@ void StreamingPipeline::PushFrame(
 // Encode worker
 // ---------------------------------------------
 void StreamingPipeline::EncodeWorkerLoop() {
-    std::unique_ptr<JpegEncoder> jpeg(CreateJpegEncoder());
-
+    // 일단 이거 수정은 해야할거같음 이름 같은건 일단 내가 핫픽스 해드림 - 준우
+    // std::unique_ptr<JpegEncoder> jpeg(CreateJpegEncoder());
+    JpegEncoder* jpeg=CreateJpegEncoder();
     while (m_isRunning.load()) {
         FrameEncodeJob job;
         {
