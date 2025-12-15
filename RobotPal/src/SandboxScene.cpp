@@ -33,6 +33,7 @@ void SandboxScene::OnEnter()
     prefabEntity.SetLocalPosition(glm::vec3(0.f, 0.f, 0.35f));
     prefabEntity.SetLocalRotation(glm::radians(glm::vec3(0.f, -90.f, 0.f)));
     
+    
     auto modelPrefab2 = AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
     auto prefabEntity2 = CreateEntity("CarGroups");
     prefabEntity2.GetHandle().is_a(modelPrefab2);
@@ -149,20 +150,6 @@ void SandboxScene::OnImGuiRender()
         );
     }
     ImGui::End();
-    ImGui::Begin("Reset Robot Position");
-    ImGui::Button("Reset");
-    if (ImGui::IsItemClicked())
-    {
-        auto sceneManagerHandle = m_World.get<const SceneManagerHandle>();
-        std::cout << sceneManagerHandle.instance << std::endl;
-        if(sceneManagerHandle.instance){
-            sceneManagerHandle.instance->LoadScene<SandboxScene>();
-        }
-    }
-
-    
-    ImGui::End();
-    
     ImGui::Begin("robotCam");
     ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(cam_W, cam_H), ImVec2(0, 0), ImVec2(1, -1));
     ImGui::End();

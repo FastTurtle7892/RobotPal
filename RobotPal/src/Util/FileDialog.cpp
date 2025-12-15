@@ -35,7 +35,7 @@ void FileDialog::manageGPU() {
 
 void FileDialog::Open(const std::string& key, const std::string& title, const std::string& filters, OnFileLoaded callback) {
     m_callback = callback;
-
+    m_mode = Mode::Open;       // 모드 변경
 #ifdef __EMSCRIPTEN__
     // Web: 비동기 업로드 요청
     // filters 예시: ".png,.jpg" (브라우저 input accept 속성)
@@ -109,7 +109,7 @@ void FileDialog::display(const ImVec4& viewportRect) {
                     data.filePath = filePath;
                     data.fileName = ImGuiFileDialog::Instance()->GetCurrentFileName();
                     
-                    std::ifstream file(filePath, std::ios::binary);
+                    std::ifstream file(filePath);
                     if (file) {
                         std::stringstream buffer;
                         buffer << file.rdbuf();

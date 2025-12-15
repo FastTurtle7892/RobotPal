@@ -22,21 +22,21 @@ void register_all_components(flecs::world& world) {
     // -- Register GLM Math Types --
     // These are used by many transform components.
     
-    world.component<glm::vec3>()
-    .member<float>("x")
-    .member<float>("y")
-    .member<float>("z");
+    // world.component<glm::vec3>()
+    // .member<float>("x")
+    // .member<float>("y")
+    // .member<float>("z");
 
-    world.component<glm::vec4>()
-    .member<float>("x")
-    .member<float>("y")
-    .member<float>("z")
-    .member<float>("w");
+    // world.component<glm::vec4>()
+    // .member<float>("x")
+    // .member<float>("y")
+    // .member<float>("z")
+    // .member<float>("w");
     
-    // A mat4 is an array of 4 vec4s. Flecs meta can handle this.
-    // We register it as a C-style array member.
-    world.component<glm::mat4>()
-    .member<glm::vec4>("col", 4);
+    // // A mat4 is an array of 4 vec4s. Flecs meta can handle this.
+    // // We register it as a C-style array member.
+    // world.component<glm::mat4>()
+    // .member<glm::vec4>("col", 4);
     
     
     // -- Register Core Components --
@@ -44,26 +44,26 @@ void register_all_components(flecs::world& world) {
     // Transform components that inherit from glm types.
     // Flecs meta will use the registered base type (e.g., glm::vec3)
     // to understand their structure.
-    world.component<Position>()
+    world.component<Position>("Position")
         .member<float>("x")
         .member<float>("y")
         .member<float>("z");
-    world.component<Rotation>()
-        .member<float>("x")
-        .member<float>("y")
-        .member<float>("z");
-        
-    world.component<Scale>()
+    world.component<Rotation>("Rotation")
         .member<float>("x")
         .member<float>("y")
         .member<float>("z");
 
-    world.component<TransformMatrix>()
-        .member<glm::vec4>("col", 4);
+    world.component<Scale>("Scale")
+        .member<float>("x")
+        .member<float>("y")
+        .member<float>("z");
+
+    // world.component<TransformMatrix>()
+    //     .member<float>("float", 16);
 
     // Tag components for local vs. world space transforms
-    world.component<Local>();
-    world.component<World>();
+    world.component<Local>("Local");
+    world.component<World>("World");
 
 
     // // Rendering components

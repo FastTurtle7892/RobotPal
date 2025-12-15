@@ -6,12 +6,12 @@ TransformSystemModule::TransformSystemModule(flecs::world &world)
 {
     world.module<TransformSystemModule>();
 
-    world.component<Position>("Position");
-    world.component<Rotation>("Rotation");
-    world.component<Scale>("Scale");
-    world.component<TransformMatrix>("TransformMatrix");
-    world.component<Local>("Local");
-    world.component<World>("World");
+    // world.component<Position>("Position");
+    // world.component<Rotation>("Rotation");
+    // world.component<Scale>("Scale");
+    // world.component<TransformMatrix>("TransformMatrix");
+    // world.component<Local>("Local");
+    // world.component<World>("World");
 
     RegisterObserver(world);
     RegisterSystem(world);
