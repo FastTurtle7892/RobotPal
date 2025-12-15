@@ -14,7 +14,7 @@ public:
     // IBL 베이커가 만든 텍스처를 등록하고 ID를 발급받는 함수
     ResourceID AddRuntimeTextureHDR(std::shared_ptr<Texture> texture, const std::string& name);
     ResourceID AddRuntimeTexture(std::shared_ptr<Texture> texture, const std::string& name);
-    flecs::entity GetPrefab(flecs::world &ecs, const std::string& name);
+    flecs::entity GetPrefab(flecs::world &ecs, const std::string& path);
 
     std::shared_ptr<Shader> GetShader(const std::string& filepath);
    
@@ -30,7 +30,7 @@ public:
 private:
     std::unordered_map<ResourceID, std::shared_ptr<Texture>> m_TextureHDR;
     std::unordered_map<ResourceID, std::shared_ptr<Texture>> m_Texture;
-    std::unordered_map<std::string, flecs::entity> m_Prefabs;
+    std::unordered_map<ResourceID, flecs::entity> m_Prefabs;
     std::unordered_map<std::string, std::shared_ptr<ModelResource>> m_Model;
     std::unordered_map<ResourceID, MaterialData*> m_Material;
     std::unordered_map<ResourceID, MeshData*> m_Mesh;

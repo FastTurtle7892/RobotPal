@@ -4,6 +4,7 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Web-blue)](https://github.com/junwo/RobotPal)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It_Now!-brightgreen)](https://junwoo-seo-1998.github.io/RobotPal/)
+![demoimg](./.github/assets/demoimg.png)
 
 This README is also available in [Korean](#robotpal-korean).
 
@@ -112,6 +113,7 @@ This project is licensed under the MIT License. See the `LICENSE` file for more 
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Web-blue)](https://github.com/junwo/RobotPal)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It_Now!-brightgreen)](https://junwoo-seo-1998.github.io/RobotPal/)
+![demoimg](./.github/assets/demoimg.png)
 
 이 README는 [영문](#robotpal)으로도 제공됩니다.
 

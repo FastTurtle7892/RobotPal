@@ -7,6 +7,7 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "ImGuizmo.h"
 #include <GLFW/glfw3.h>
 #include <glad/gles2.h>
 
@@ -24,7 +25,9 @@
 #include "RobotPal/Systems/StreamingSystemModule.h"
 #include "RobotPal/Systems/ControllerSystemModule.h"
 #include "RobotPal/Core/Texture.h"
-
+#include "RobotPal/Components/ComponentRegistration.h"
+#include "RobotPal/Util/FileDialog.h"
+#include "RobotPal/EditorLayer.h"
 #include <thread>
 #include <chrono>
 
@@ -40,9 +43,15 @@ void EngineApp::Init()
     m_Window=std::make_shared<Window>(1280, 720, "RobotPal");
     m_Window->Init();
     ImGuiManager::Get().Init(m_Window->GetNativeWindow());
+    FileDialog::Instance().init();
 
-    
+    m_EditorLayer = std::make_shared<EditorLayer>(m_World);
+    m_EditorLayer->Init();
+
     m_SceneManager = std::make_shared<SceneManager>(m_World);
+    
+    RobotPal::register_all_components(m_World);
+
     m_SceneManager->LoadScene<SandboxScene>();
     
     m_World.set<WindowData>({ (float)1280, (float)720});
@@ -53,13 +62,20 @@ void EngineApp::Init()
     m_World.import<StreamingSystemModule>();
     m_World.import<ControllerSystemModule>();
 
-    m_World.progress(0.0f); // 초기화 진행
+
+    //Preload
+    auto hdrID = AssetManager::Get().LoadTextureHDR("./Assets/parking_garage.hdr");
+    m_World.set<Skybox>({hdrID, 1.0f, 0.0f});
+
+    AssetManager::Get().GetPrefab(m_World, "./Assets/jetank.glb");
+    AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
 }
 
 void EngineApp::MainLoop()
 {
     m_LastFrameTime=(float)glfwGetTime();
-    glm::vec4 clear_color = {0.45f, 0.55f, 0.60f, 1.00f};
+    //glm::vec4 clear_color = {0.45f, 0.55f, 0.60f, 1.00f};
+    glm::vec4 clear_color = {0.1f, 0.1f, 0.1f, 1.00f};
 
     RenderCommand::Init(); 
 #ifdef __EMSCRIPTEN__
@@ -97,9 +113,16 @@ void EngineApp::MainLoop()
 
         // Start the Dear ImGui frame
         ImGuiManager::Get().NewFrame();
+        ImGuizmo::BeginFrame();
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImVec4 viewportRect(viewport->WorkPos.x, viewport->WorkPos.y, viewport->WorkSize.x, viewport->WorkSize.y);
+        
+        FileDialog::Instance().display(viewportRect);
 
+        FileDialog::Instance().manageGPU();
         //draw gui
         {
+            m_EditorLayer->OnImGuiRender();
             m_SceneManager->OnImGuiRender();
         }
 
@@ -115,6 +138,7 @@ void EngineApp::MainLoop()
 
 void EngineApp::Shutdown()
 {
+    FileDialog::Instance().unit();
     Texture::CleanUpStaticResources();
     AssetManager::Get().ClearData();
     ImGuiManager::Get().Shutdown();

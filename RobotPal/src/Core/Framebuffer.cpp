@@ -141,5 +141,7 @@ void Framebuffer::Invalidate() {
         std::cerr << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
     }
 
+    //glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

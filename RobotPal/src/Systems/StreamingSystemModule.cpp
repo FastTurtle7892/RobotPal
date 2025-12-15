@@ -1,96 +1,50 @@
 #include "RobotPal/Systems/StreamingSystemModule.h"
 #include "RobotPal/Components/Components.h"
-#include "RobotPal/Network/NetworkEngine.h"
-#include "stb_image_write.h"
-#include <iostream>
-
+#include "RobotPal/Util/StreamingPipeline.h"
 
 StreamingSystemModule::StreamingSystemModule(flecs::world& world)
+    : m_world(world)
 {
-    bool networkEngineFound=false;
-    auto handle = world.get_mut<const NetworkEngineHandle>();
+    m_worker = std::make_unique<StreamingPipeline>(world);
 
-    netEngine=handle.instance;
-
-    if(!netEngine)
-    {
-        std::cout<<"check module init order - network engine was not started\n";
-    }
-    
-    RegisterObserver(world);    
+    RegisterObserver(world);
     RegisterSystem(world);
 }
 
-// struct config{
-//     #ifdef __EMSCRIPTEN__
-//     int port;
-
+StreamingSystemModule::~StreamingSystemModule() = default;
 
 void StreamingSystemModule::RegisterObserver(flecs::world& world)
 {
     world.observer<const VideoSender>()
-    .event(flecs::OnSet)
-    .each([&](flecs::entity e, const VideoSender &videoCmp)
-    {
-        netEngine->TryConnect(videoCmp.url);
-    });
-}
-
-
-
-static void write_func(void* ctx, void* data, int size) {
-    auto* c = static_cast<WriteContext*>(ctx);
-    c->buffer.insert(c->buffer.end(), (uint8_t*)data, (uint8_t*)data + size);
+        .event(flecs::OnSet)
+        .each([this](flecs::entity, const VideoSender& sender) {
+            if (m_worker && sender.url.size()) {
+                m_worker->TryConnect(sender.url);
+            }
+        });
 }
 
 void StreamingSystemModule::RegisterSystem(flecs::world& world)
 {
     world.system<const Camera, const RenderTarget, const VideoSender>()
-    .kind(flecs::PostFrame) // [핵심] 렌더링(OnStore)이 끝난 직후 실행
-    .rate(2)
-    .multi_threaded(false)
-    .each([&](flecs::entity entity, const Camera &cam, const RenderTarget &renderTarget, const VideoSender& videoCmp)
-    {
-        if(!netEngine || !netEngine->IsConnected())
-            return;
+        .kind(flecs::PostFrame)
+        .rate(2)
+        .each([this](flecs::entity, const Camera&, const RenderTarget& rt, const VideoSender&) {
+            auto tex = rt.fbo->GetColorAttachment();
+            auto raw = tex->GetAsyncData(m_world.get_info()->frame_count_total);
+            if (raw.empty()) return;
 
-        auto fbo=renderTarget.fbo;
-        auto tex=fbo->GetColorAttachment();
+            int comps =
+                tex->GetFormat() == TextureFormat::RGB8 ? 3 :
+                tex->GetFormat() == TextureFormat::RGBA8 ? 4 : 0;
+            if (!comps) return;
 
-        uint64_t currentFrame = world.get_info()->frame_count_total;
-        auto data=tex->GetAsyncData(currentFrame);
-        if (!data.empty())
-         {
-            auto colorTex = renderTarget.fbo->GetColorAttachment();
-            auto width = colorTex->GetWidth();
-            auto height = colorTex->GetHeight();
-            auto format = colorTex->GetFormat();
-
-            int components = 0;
-            if (format == TextureFormat::RGB8)
-                components = 3;
-            else if (format == TextureFormat::RGBA8)
-                components = 4;
-            else
-                return; // 포맷 지원 안함
-            
-            WriteContext ctx;
-            ctx.buffer.reserve(width * height*3);
-
-            int ok = stbi_write_jpg_to_func(
-                write_func, &ctx,
-                width, height, components,
-                data.data(), 85
-                
+            m_worker->PushFrame(
+                std::move(raw),
+                tex->GetWidth(),
+                tex->GetHeight(),
+                comps,
+                static_cast<uint32_t>(m_world.get_info()->frame_count_total)
             );
-            if (!ok || ctx.buffer.empty()) return;
-            std::vector<uint8_t> packet;
-            uint32_t len = static_cast<uint32_t>(ctx.buffer.size());
-            packet.insert(packet.end(), reinterpret_cast<uint8_t*>(&len), reinterpret_cast<uint8_t*>(&len) + 4);
-            packet.insert(packet.end(), ctx.buffer.begin(), ctx.buffer.end());
-            
-            netEngine->SendPacket(packet);
-            
-        }
-    });
+        });
 }

@@ -9,6 +9,8 @@
 #include "RobotPal/SceneManager.h"
 #include "RobotPal/Components/Components.h"
 #include "RobotPal/Network/NetworkEngine.h"
+#include "RobotPal/Util/FileDialog.h"
+#include "RobotPal/Util/SceneSerializer.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -17,31 +19,24 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <memory>
-
+#include <json.hpp>
 
 static std::shared_ptr<IRobotController> g_Controller;
 static Entity prefabEntity;
-
+static float cam_W = 1632.f/2.f, cam_H = 1232.f/2.f;
 std::shared_ptr<Framebuffer> camView;
 void SandboxScene::OnEnter()
 {    
-    auto hdrID = AssetManager::Get().LoadTextureHDR("./Assets/parking_garage.hdr");
-    m_World.set<Skybox>({hdrID, 1.0f, 0.0f});
-
     auto modelPrefab = AssetManager::Get().GetPrefab(m_World, "./Assets/jetank.glb");
     prefabEntity = CreateEntity("mainModel");
     prefabEntity.GetHandle().is_a(modelPrefab);
-    
-    prefabEntity.SetLocalPosition(glm::vec3(0.f, 0.f, 0.7f));
+    prefabEntity.SetLocalPosition(glm::vec3(0.f, 0.f, 0.35f));
     prefabEntity.SetLocalRotation(glm::radians(glm::vec3(0.f, -90.f, 0.f)));
     
     
-
-    // auto modelPrefab2 = AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
-    // auto prefabEntity2 = CreateEntity("mainModel2");
-    // prefabEntity2.GetHandle().is_a(modelPrefab2);
-    //prefabEntity2.SetLocalPosition({0.4f, 0.f, 0.5f});
-    //prefabEntity2.SetLocalRotation(glm::radians(glm::vec3(0.f, -211.f, 0.f)));
+    auto modelPrefab2 = AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
+    auto prefabEntity2 = CreateEntity("CarGroups");
+    prefabEntity2.GetHandle().is_a(modelPrefab2);
 
     auto mapPrefab = AssetManager::Get().GetPrefab(m_World, "./Assets/map.glb");
     auto map=CreateEntity("map");
@@ -51,14 +46,13 @@ void SandboxScene::OnEnter()
     // auto tile=CreateEntity("tile");
     // tile.GetHandle().is_a(tilePrefab);
 
-    auto mainCam=CreateEntity("mainCam");
+    auto mainCam=CreateEntity("MainCamera");
     mainCam.Set<Camera>({});
-    mainCam.SetLocalPosition({0.1f, 0.5f, 1.1f});
+    mainCam.SetLocalPosition({0.0f, 0.5f, 1.1f});
     mainCam.SetLocalRotation(glm::radians(glm::vec3(-35.f, -0.15f, 0.f)));
 
-    // camView=Framebuffer::Create(1640, 1232);
-    camView=Framebuffer::Create(224, 224);
-
+    camView=Framebuffer::Create(cam_W, cam_H);
+    // camView=Framebuffer::Create(224, 224);
 
     auto robotCamera=CreateEntity("robotCam");
 #ifdef __EMSCRIPTEN__
@@ -87,6 +81,11 @@ void SandboxScene::OnEnter()
     std::cout << ">>> Setting ControllerComponent on prefabEntity\n";
     prefabEntity.Set<ControllerComponent>({prefabEntity});
     std::cout << ">>> ControllerComponent set successfully\n";
+    flecs::world w;
+    
+    
+    //save("test.json");
+    //load("test.json");
 }  
 
 void SandboxScene::OnUpdate(float dt)
@@ -98,10 +97,10 @@ void SandboxScene::OnUpdate(float dt)
     GLFWwindow* window = glfwGetCurrentContext();
     float speed = 1.0f; 
     float turn_speed = 2.5f;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) v = speed;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) v = -speed;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) w = turn_speed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) w = -turn_speed;
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) v = speed;
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) v = -speed;
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) w = turn_speed;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) w = -turn_speed;
 
     g_Controller->Move(v, w);
     g_Controller->Update(dt);
@@ -119,22 +118,9 @@ void SandboxScene::OnImGuiRender()
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("Generated/IBL_Environment"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("IBL_BRDF_LUT"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::End();
-    ImGui::Begin("Reset Robot Position");
-    ImGui::Button("Reset");
-    if (ImGui::IsItemClicked())
-    {
-        auto sceneManagerHandle = m_World.get<const SceneManagerHandle>();
-        std::cout << sceneManagerHandle.instance << std::endl;
-        if(sceneManagerHandle.instance){
-            sceneManagerHandle.instance->LoadScene<SandboxScene>();
-        }
-    }
-
-    
-    ImGui::End();
     
     ImGui::Begin("robotCam");
-    ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(224, 224), ImVec2(0, 0), ImVec2(1, -1));
+    ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(cam_W, cam_H), ImVec2(0, 0), ImVec2(1, -1));
     ImGui::End();
 
     // 창 이름을 전체를 아우르는 이름으로 변경하면 좋습니다.

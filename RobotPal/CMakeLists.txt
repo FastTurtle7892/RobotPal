@@ -20,15 +20,18 @@ if(EMSCRIPTEN)
     # 3. 링크 옵션 (전역 설정)
     # 스레드 풀 사이즈, 웹소켓 등 링커에게 필요한 정보를 미리 줍니다.
     add_link_options(
-        #"-pthread"
+        "-pthread"
         "-sALLOW_MEMORY_GROWTH=1"
-        #"-sPTHREAD_POOL_SIZE=3"   # 스레드 풀
+        "-sPTHREAD_POOL_SIZE=8"   # 스레드 풀
         "-sUSE_GLFW=3"
         "-sFULL_ES3=1"
         "-lwebsocket.js"
         "--use-preload-plugins"
         "SHELL:-sSTACK_SIZE=8388608"
+        "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8]"
+        "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]"
     )
+
 endif()
 
 # ==============================================================================
@@ -63,6 +66,45 @@ add_library(imgui STATIC
     ${imgui_external_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
 target_include_directories(imgui PUBLIC ${imgui_external_SOURCE_DIR} ${imgui_external_SOURCE_DIR}/backends/)
+
+FetchContent_Declare(imgui_file_dialog_external
+    GIT_REPOSITORY "https://github.com/aiekick/ImGuiFileDialog.git"
+    GIT_TAG "v0.6.8"
+    GIT_SHALLOW 1
+    EXCLUDE_FROM_ALL
+)
+FetchContent_Populate(imgui_file_dialog_external)
+
+add_library(imgui_file_dialog STATIC
+    ${imgui_file_dialog_external_SOURCE_DIR}/ImGuiFileDialog.cpp
+)
+target_include_directories(imgui_file_dialog PUBLIC ${imgui_file_dialog_external_SOURCE_DIR})
+target_link_libraries(imgui_file_dialog PUBLIC imgui)
+
+
+FetchContent_Declare(imgui_guizmo_external
+    GIT_REPOSITORY "https://github.com/CedricGuillemet/ImGuizmo.git"
+    GIT_SHALLOW 1
+    EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(imgui_guizmo_external)
+
+add_library(imgui_guizmo STATIC
+    ${imgui_guizmo_external_SOURCE_DIR}/GraphEditor.cpp
+    ${imgui_guizmo_external_SOURCE_DIR}/GraphEditor.h
+    ${imgui_guizmo_external_SOURCE_DIR}/ImCurveEdit.cpp
+    ${imgui_guizmo_external_SOURCE_DIR}/ImCurveEdit.h
+    ${imgui_guizmo_external_SOURCE_DIR}/ImGradient.cpp
+    ${imgui_guizmo_external_SOURCE_DIR}/ImGradient.h
+    ${imgui_guizmo_external_SOURCE_DIR}/ImGuizmo.cpp
+    ${imgui_guizmo_external_SOURCE_DIR}/ImGuizmo.h
+    ${imgui_guizmo_external_SOURCE_DIR}/ImSequencer.cpp
+    ${imgui_guizmo_external_SOURCE_DIR}/ImSequencer.h
+    ${imgui_guizmo_external_SOURCE_DIR}/ImZoomSlider.h
+)
+
+target_include_directories(imgui_guizmo PUBLIC ${imgui_guizmo_external_SOURCE_DIR})
+target_link_libraries(imgui_guizmo PUBLIC imgui)
 
 # Draco 및 기타 라이브러리
 set(DRACO_TESTS OFF CACHE BOOL "" FORCE)
@@ -158,7 +200,7 @@ target_link_libraries(RobotPal PRIVATE nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)
     # Emscripten 라이브러리 링크
     target_link_libraries(imgui PRIVATE glfw)
-    target_link_libraries(RobotPal PRIVATE glfw imgui)
+    target_link_libraries(RobotPal PRIVATE glfw imgui imgui_file_dialog imgui_guizmo)
 
     # 에셋 프리로딩 설정 (ASSET_DIR 변수가 필요하므로 여기서 설정)
     target_link_options(RobotPal PRIVATE
@@ -197,7 +239,7 @@ else()
 
     target_link_libraries(RobotPal PRIVATE Threads::Threads)
     target_link_libraries(imgui PRIVATE glfw OpenGL::GL)
-    target_link_libraries(RobotPal PRIVATE glfw OpenGL::GL imgui)
+    target_link_libraries(RobotPal PRIVATE glfw OpenGL::GL imgui imgui_file_dialog imgui_guizmo)
 
     add_custom_command(TARGET RobotPal POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -210,4 +252,106 @@ else()
         find_package(X11 REQUIRED)
         target_link_libraries(imgui PRIVATE ${X11_LIBRARIES})
     endif()
+endif()
+
+# ==============================================================================
+# [최종 수정] libjpeg-turbo 설정 (Native vs Web 분기)
+# ==============================================================================
+
+if(EMSCRIPTEN)
+    # --------------------------------------------------------------------------
+    # 1. Web (Emscripten) 환경
+    # --------------------------------------------------------------------------
+    message(STATUS "Configuring libjpeg for Emscripten (Using built-in Port)")
+    
+    # Emscripten은 libjpeg를 자체적으로 내장하고 있습니다 ('-s USE_LIBJPEG=1').
+    # 굳이 소스를 받아서 빌드할 필요가 없습니다.
+    
+    # 컴파일/링크 옵션에 포트 사용 설정 추가
+    target_compile_options(RobotPal PRIVATE "-sUSE_LIBJPEG=1")
+    target_link_options(RobotPal PRIVATE "-sUSE_LIBJPEG=1")
+    
+    # (참고) 별도의 target_link_libraries가 필요 없습니다. 
+    # 하지만 코드 호환성을 위해 가짜 타겟이 필요하다면 아래처럼 처리 가능합니다.
+
+    else()
+    # --------------------------------------------------------------------------
+    # 2. Native (Windows/Linux) 환경
+    # --------------------------------------------------------------------------
+    message(STATUS "Configuring libjpeg for Native (Using ExternalProject + BYPRODUCTS)")
+
+    # 1. Native 전용 라이브러리들 (GLFW 등)
+    set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+        glfw
+        GIT_REPOSITORY https://github.com/glfw/glfw.git
+        GIT_TAG 3.4
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(glfw)
+
+    find_package(OpenGL REQUIRED)
+    find_package(Threads REQUIRED)
+
+    target_link_libraries(RobotPal PRIVATE Threads::Threads)
+    target_link_libraries(imgui PRIVATE glfw OpenGL::GL)
+    target_link_libraries(RobotPal PRIVATE glfw OpenGL::GL imgui imgui_file_dialog imgui_guizmo)
+
+    add_custom_command(TARGET RobotPal POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${ASSET_DIR}
+        $<TARGET_FILE_DIR:RobotPal>/Assets
+        COMMENT "Copying Assets to output directory..."
+    )
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_package(X11 REQUIRED)
+        target_link_libraries(imgui PRIVATE ${X11_LIBRARIES})
+    endif()
+
+    # --------------------------------------------------------------------------
+    # [수정] libjpeg-turbo (ExternalProject)
+    # --------------------------------------------------------------------------
+    include(ExternalProject)
+    
+    set(LIBJPEG_INSTALL_DIR "${CMAKE_BINARY_DIR}/libjpeg_turbo_install")
+    
+    # [중요] ExternalProject_Add 호출 전에 파일명을 먼저 결정해야 합니다.
+    if(MSVC)
+        set(LIBJPEG_LIB_NAME "jpeg-static.lib")
+    else()
+        set(LIBJPEG_LIB_NAME "libjpeg.a")
+    endif()
+
+    ExternalProject_Add(
+        libjpeg_turbo
+        GIT_REPOSITORY https://github.com/libjpeg-turbo/libjpeg-turbo.git
+        GIT_TAG 3.0.3
+        PREFIX ${CMAKE_BINARY_DIR}/libjpeg_turbo_build
+        # [핵심 수정] Ninja에게 이 파일이 생성될 것임을 약속합니다.
+        BUILD_BYPRODUCTS "${LIBJPEG_INSTALL_DIR}/lib/${LIBJPEG_LIB_NAME}"
+        CMAKE_ARGS
+            -DCMAKE_INSTALL_PREFIX=${LIBJPEG_INSTALL_DIR}
+            -DENABLE_STATIC=ON
+            -DENABLE_SHARED=OFF
+            -DWITH_SIMD=OFF  
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+            -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+    )
+
+    # 폴더 미리 생성 (Configure 에러 방지)
+    file(MAKE_DIRECTORY "${LIBJPEG_INSTALL_DIR}/include")
+    
+    add_library(libjpeg_turbo_static STATIC IMPORTED)
+    set_target_properties(libjpeg_turbo_static PROPERTIES
+        IMPORTED_LOCATION "${LIBJPEG_INSTALL_DIR}/lib/${LIBJPEG_LIB_NAME}"
+        INTERFACE_INCLUDE_DIRECTORIES "${LIBJPEG_INSTALL_DIR}/include"
+    )
+    
+    add_dependencies(libjpeg_turbo_static libjpeg_turbo)
+    target_link_libraries(RobotPal PRIVATE libjpeg_turbo_static)
+
 endif()

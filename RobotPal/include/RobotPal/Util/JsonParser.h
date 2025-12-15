@@ -11,13 +11,12 @@ using json = nlohmann::json;
 
 inline bool ExtractJsonString(const Packet& packet, std::string& outStr)
 {
+    std::cout << "[JsonParser] Extracting JSON string from packet of size: " << packet.data.size() << std::endl;
     if(packet.data.size() < 4) return false;
-
     uint32_t size = 0;
     std::memcpy(&size, packet.data.data(), 4);
-
+    std::cout << "[JsonParser] JSON string size: " << size << std::endl;
     if(packet.data.size() < 4 + size) return false;
-
     outStr.assign(reinterpret_cast<const char*>(packet.data.data() + 4), size);
 
     return true;
@@ -41,7 +40,7 @@ inline CommandType ParseJson(const Packet& packet,
     }
 
     const std::string type = j.value("type", "");
-
+    std::cout << "[JsonParser] Command Type: " << type << std::endl;
     if(type == "drive"){
         if(DriveCmd){
             DriveCmd->left = j.value("left", 0.0f);
