@@ -108,7 +108,7 @@ RenderSystemModule::RenderSystemModule(flecs::world &world)
     RegisterSystem();
 }
 
-glm::mat4 CreateViewMatrixFromWorld(const glm::mat4 &worldMatrix)
+static glm::mat4 CreateViewMatrixFromWorld(const glm::mat4 &worldMatrix)
 {
     // 1. 위치(Position) 추출 (4열)
     glm::vec3 pos = glm::vec3(worldMatrix * glm::vec4(0.f, 0.f, 0.f, 1.f));

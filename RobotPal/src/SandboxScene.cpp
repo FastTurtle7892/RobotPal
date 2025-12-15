@@ -95,10 +95,10 @@ void SandboxScene::OnUpdate(float dt)
     GLFWwindow* window = glfwGetCurrentContext();
     float speed = 1.0f; 
     float turn_speed = 2.5f;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) v = speed;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) v = -speed;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) w = turn_speed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) w = -turn_speed;
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) v = speed;
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) v = -speed;
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) w = turn_speed;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) w = -turn_speed;
 
     g_Controller->Move(v, w);
     g_Controller->Update(dt);
@@ -116,170 +116,8 @@ void SandboxScene::OnImGuiRender()
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("Generated/IBL_Environment"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::Image((void*)(intptr_t)AssetManager::Get().GetTextureHDR(GetID("IBL_BRDF_LUT"))->GetID(), ImVec2(100, 100), ImVec2(0, 0), ImVec2(1, -1));
     // ImGui::End();
-    ImGui::Begin("Load & Save Scene");
-    // [LOAD 버튼]
-    if (ImGui::Button("Load Scene (.robotpal)")) {
-        FileDialog::Instance().Open(
-            "SceneLoadKey", 
-            "Load Scene", 
-            ".robotpal",  // [변경] 확장자 필터
-            [&](const FileData& data) {
-                // 원본 문자열 그대로 로드
-                m_Serializer->DeserializeFromString(data.content);
-                std::cout << "Scene Loaded: " << data.fileName << std::endl;
-            }
-        );
-    }
-
-    ImGui::SameLine();
-
-    // [SAVE 버튼]
-    if (ImGui::Button("Save Scene (.robotpal)")) {
-        // 1. 포매팅 없는 Raw String 가져오기
-        std::string rawSceneData = m_Serializer->SerializeToString();
-        
-        // 2. 저장 요청
-        FileDialog::Instance().Save(
-            "SceneSaveKey", 
-            "Save Scene", 
-            ".robotpal",           // [변경] 확장자 필터
-            "MyScene.robotpal",    // [변경] 기본 파일명
-            rawSceneData           // 내용 전달
-        );
-    }
-    ImGui::End();
+    
     ImGui::Begin("robotCam");
-    ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(400, 400), ImVec2(0, 0), ImVec2(1, -1));
-    ImGui::End();
-
-    // 창 이름을 전체를 아우르는 이름으로 변경하면 좋습니다.
-    ImGui::Begin("Scene Graph & Inspector");
-
-    // 1. 선택된 엔티티 상태
-    static flecs::entity selectedEntity;
-
-    // ---------------------------------------------------------
-    // [레이아웃 시작] 2개의 컬럼으로 화면 분할 (크기 조절 가능)
-    // ---------------------------------------------------------
-    // flags: Resizable(경계선 드래그), BordersInnerV(중간 세로줄)
-    if (ImGui::BeginTable("SplitLayout", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV))
-    {
-        // =====================================================
-        // [왼쪽 컬럼] 계층 구조 (Hierarchy)
-        // =====================================================
-        ImGui::TableNextColumn();
-        
-        // 팁: 왼쪽 영역 안에서만 스크롤이 되도록 Child Window를 사용합니다.
-        // 높이를 0으로 설정하면 남은 세로 공간을 모두 채웁니다.
-        ImGui::BeginChild("HierarchyRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-        
-        ImGui::TextDisabled("Hierarchy");
-        ImGui::Separator();
-
-        // --- 재귀 람다 (기존 로직 유지) ---
-        auto drawNode = [&](auto&& self, flecs::entity e) -> void {
-            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-            if (selectedEntity == e) {
-                flags |= ImGuiTreeNodeFlags_Selected;
-            }
-
-            bool hasChildren = false;
-            e.children([&](flecs::entity) { hasChildren = true; });
-            if (!hasChildren) {
-                flags |= ImGuiTreeNodeFlags_Leaf;
-            }
-
-            if (e.name() == "mainModel") {
-                flags |= ImGuiTreeNodeFlags_DefaultOpen;
-            }
-
-            const char* name = e.name().c_str();
-            std::string label = (name && *name) ? name : std::to_string(e.id());
-
-            bool opened = ImGui::TreeNodeEx((void*)(uintptr_t)e.id(), flags, "%s", label.c_str());
-
-            if (ImGui::IsItemClicked()) {
-                selectedEntity = e;
-            }
-
-            if (opened) {
-                if (hasChildren) {
-                    e.children([&](flecs::entity child) {
-                        self(self, child);
-                    });
-                }
-                ImGui::TreePop();
-            }
-        };
-
-        // --- 트리 그리기 ---
-        flecs::entity rootModel = m_SceneRoot;
-        if (rootModel.is_alive()) {
-            rootModel.children([&](flecs::entity child) {
-                drawNode(drawNode, child);
-            });
-        } else {
-            ImGui::TextColored(ImVec4(1, 0, 0, 1), "'mainModel' not found.");
-        }
-
-        ImGui::EndChild(); // HierarchyRegion 끝
-
-        // =====================================================
-        // [오른쪽 컬럼] 인스펙터 (Inspector)
-        // =====================================================
-        ImGui::TableNextColumn();
-        
-        // 오른쪽 영역도 내용이 많으면 스크롤 되도록 Child Window 처리
-        ImGui::BeginChild("InspectorRegion", ImVec2(0, 0), false);
-
-        ImGui::TextDisabled("Inspector");
-        ImGui::Separator();
-
-        if (selectedEntity.is_alive()) {
-            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "[%s] Properties", selectedEntity.name().c_str());
-            ImGui::Spacing();
-
-            // 사용자 정의 Entity 래퍼 사용
-            Entity selectedEntityWrapper(selectedEntity);
-
-            // 1. Position (Translation)
-            {
-                auto pos = selectedEntityWrapper.GetLocalPosition();
-                if(ImGui::DragFloat3("Position", glm::value_ptr(pos), 0.1f))
-                {
-                    selectedEntityWrapper.SetLocalPosition(pos);
-                }
-            }
-
-            // 2. Rotation (Radian <-> Degree 변환)
-            {
-                // GetLocalRotation()이 Radian을 반환한다고 가정
-                glm::vec3 eulerAngles = glm::degrees(selectedEntityWrapper.GetLocalRotation());
-                
-                // UI에서는 Degree로 조작
-                if (ImGui::DragFloat3("Rotation", glm::value_ptr(eulerAngles), 1.0f)) 
-                {
-                    // 저장할 때는 다시 Radian으로
-                    selectedEntityWrapper.SetLocalRotation(glm::radians(eulerAngles));
-                }
-            }
-
-            // 3. Scale
-            {
-                auto scale = selectedEntityWrapper.GetLocalScale();
-                if(ImGui::DragFloat3("Scale", glm::value_ptr(scale), 0.05f))
-                {
-                    selectedEntityWrapper.SetLocalScale(scale);
-                }
-            }
-        } else {
-            ImGui::TextDisabled("No entity selected.");
-        }
-        
-        ImGui::EndChild(); // InspectorRegion 끝
-        
-        ImGui::EndTable(); // SplitLayout 끝
-    }
-
+    ImGui::Image((void*)(intptr_t)camView->GetColorAttachment()->GetID(), ImVec2(200, 200), ImVec2(0, 0), ImVec2(1, -1));
     ImGui::End();
 }

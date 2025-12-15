@@ -7,6 +7,7 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "ImGuizmo.h"
 #include <GLFW/glfw3.h>
 #include <glad/gles2.h>
 
@@ -112,6 +113,7 @@ void EngineApp::MainLoop()
 
         // Start the Dear ImGui frame
         ImGuiManager::Get().NewFrame();
+        ImGuizmo::BeginFrame();
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImVec4 viewportRect(viewport->WorkPos.x, viewport->WorkPos.y, viewport->WorkSize.x, viewport->WorkSize.y);
         

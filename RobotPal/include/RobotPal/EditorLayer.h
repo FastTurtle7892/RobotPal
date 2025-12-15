@@ -25,6 +25,7 @@ private:
     void DrawMenuBar();
     void DrawViewport();      // Game View
     void DrawSceneHierarchy();// Entity List
+    void DrawEntityNode(flecs::entity e);
     void DrawProperties();    // Inspector
     
     // --- 기능 ---

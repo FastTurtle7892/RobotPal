@@ -7,6 +7,8 @@
 #include <imgui_internal.h> // DockBuilder
 #include <ImGuizmo.h>
 #include <glm/gtc/type_ptr.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/matrix_decompose.hpp>
 #include <glad/gles2.h> // glClearColor 등
 
 EditorLayer::EditorLayer(flecs::world& world) 
@@ -149,137 +151,255 @@ void EditorLayer::DrawViewport() {
     ImGui::PopStyleVar();
 }
 
+static glm::mat4 CreateViewMatrixFromWorld(const glm::mat4 &worldMatrix)
+{
+    // 1. 위치(Position) 추출 (4열)
+    glm::vec3 pos = glm::vec3(worldMatrix * glm::vec4(0.f, 0.f, 0.f, 1.f));
+
+    // 2. Forward(앞) 벡터 추출 및 정규화
+    // OpenGL 메모리 레이아웃상 3열(인덱스 2)은 로컬 Z축(Backward)입니다.
+    // 카메라는 -Z를 보므로, 이를 반전시켜 Forward를 구합니다.
+    glm::vec3 backward = glm::vec3(worldMatrix[2]);
+    glm::vec3 forward = glm::normalize(-backward); // 스케일 제거됨
+
+    // 3. Right(오른쪽) 벡터 재구축 (스케일/쉐어링 제거의 핵심)
+    // 월드 행렬의 X축(0열)을 쓰지 않고 외적으로 새로 구합니다.
+    glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 right;
+
+    // 짐벌락(Gimbal Lock) 예외 처리: 카메라가 수직으로 위/아래를 볼 때
+    if (glm::abs(glm::dot(forward, worldUp)) > 0.999f)
+    {
+        // 위를 보고 있으면 Right를 임의의 축(예: X축)으로 설정
+        right = glm::vec3(1.0f, 0.0f, 0.0f);
+    }
+    else
+    {
+        right = glm::normalize(glm::cross(forward, worldUp));
+    }
+
+    // 4. Up(위) 벡터 재구축
+    glm::vec3 up = glm::normalize(glm::cross(right, forward));
+
+    // 5. View Matrix 직접 조립 (R_transposed * T_inverse)
+    // GLM은 Column-Major이므로 [Col][Row] 순서 혹은 생성자에 열 순서로 대입
+    glm::mat4 view(1.0f);
+
+    // -- 회전 파트 (Transposed Rotation) --
+    // Right Vector (1행)
+    view[0][0] = right.x;
+    view[1][0] = right.y;
+    view[2][0] = right.z;
+
+    // Up Vector (2행)
+    view[0][1] = up.x;
+    view[1][1] = up.y;
+    view[2][1] = up.z;
+
+    // Backward Vector (3행) - OpenGL 뷰 공간은 Z가 뒤쪽을 향함
+    // forward의 반대인 backward(-forward)가 필요하지만,
+    // 위에서 구한 forward 벡터를 기준으로 생각하면: -forward
+    glm::vec3 viewZ = -forward;
+    view[0][2] = viewZ.x;
+    view[1][2] = viewZ.y;
+    view[2][2] = viewZ.z;
+
+    // -- 이동 파트 (Translation) --
+    // 공식: -dot(Axis, Position)
+    view[3][0] = -glm::dot(right, pos);
+    view[3][1] = -glm::dot(up, pos);
+    view[3][2] = -glm::dot(viewZ, pos);
+
+    // 마지막 3,3은 1.0f (초기화시 설정됨)
+
+    return view;
+}
+
 void EditorLayer::DrawGizmo(flecs::entity cameraEnt) {
-    // if (!m_SelectedEntity.is_alive() || m_GizmoOperation == -1) return;
+    // 1. 유효성 검사
+    if (m_SelectedEntity == flecs::entity::null() || !m_SelectedEntity.is_alive() || m_GizmoOperation == -1) return;
 
-    // // 카메라 데이터 가져오기
-    // auto* cam = cameraEnt.get_mut<Camera*>();
-    // auto* camTrans = cameraEnt.get_mut<TransformMatrix*>();
-    // if (!cam || !camTrans) return;
+    // 2. 카메라 데이터 가져오기
+    auto* cam = cameraEnt.try_get<Camera>();
+    auto* camTrans = cameraEnt.try_get<TransformMatrix, World>();
+    if (!cam || !camTrans) return;
 
-    // // View Matrix: 카메라 Transform의 역행렬
-    // glm::mat4 view = glm::inverse((glm::mat4)*camTrans);
+    // View Matrix: 카메라 월드 행렬의 역행렬
+    glm::mat4 view = CreateViewMatrixFromWorld(*camTrans);
     
-    // // Projection Matrix
-    // float aspect = m_ViewportSize.x / m_ViewportSize.y;
-    // glm::mat4 projection = glm::perspective(glm::radians(cam->fov), aspect, cam->nearPlane, cam->farPlane);
+    // Projection Matrix
+    float aspect = m_ViewportSize.x / m_ViewportSize.y;
+    glm::mat4 projection = glm::perspective(glm::radians(cam->fov), aspect, cam->nearPlane, cam->farPlane);
 
-    // // 대상 Entity의 Transform
-    // auto* transformComp = m_SelectedEntity.get_mut<TransformMatrix*>();
-    // glm::mat4 transform = *transformComp;
+    // 3. [핵심] 기즈모에 사용할 'World 행렬' 가져오기
+    // 기즈모는 화면상에서 객체의 '실제 위치'에 붙어야 하므로 World 행렬을 사용해야 합니다.
+    auto* worldComp = m_SelectedEntity.try_get<TransformMatrix, World>();
+    
+    // 만약 World 행렬이 아직 계산 안 됐다면 Local이라도 가져옴 (Fallback)
+    glm::mat4 currentTransform;
+    if (worldComp) {
+        currentTransform = *worldComp;
+    } else {
+        auto* localComp = m_SelectedEntity.try_get<TransformMatrix, Local>();
+        if (!localComp) return; // 위치 정보가 아예 없으면 리턴
+        currentTransform = *localComp;
+    }
 
-    // // ImGuizmo 설정
-    // ImGuizmo::SetOrthographic(false);
-    // ImGuizmo::SetDrawlist();
-    // ImGuizmo::SetRect(m_ViewportBounds[0].x, m_ViewportBounds[0].y, 
-    //                   m_ViewportBounds[1].x - m_ViewportBounds[0].x, 
-    //                   m_ViewportBounds[1].y - m_ViewportBounds[0].y);
+    // 4. ImGuizmo 설정
+    ImGuizmo::SetOrthographic(false);
+    ImGuizmo::SetDrawlist();
+    ImGuizmo::SetRect(m_ViewportBounds[0].x, m_ViewportBounds[0].y, 
+                      m_ViewportBounds[1].x - m_ViewportBounds[0].x, 
+                      m_ViewportBounds[1].y - m_ViewportBounds[0].y);
 
-    // // Snapping (Ctrl 키)
-    // bool snap = ImGui::GetIO().KeyCtrl;
-    // float snapValue = 0.5f; 
-    // if (m_GizmoOperation == ImGuizmo::ROTATE) snapValue = 45.0f;
-    // float snapValues[3] = { snapValue, snapValue, snapValue };
+    // Snapping
+    bool snap = ImGui::GetIO().KeyCtrl;
+    float snapValue = 0.5f; 
+    if (m_GizmoOperation == ImGuizmo::ROTATE) snapValue = 45.0f;
+    float snapValues[3] = { snapValue, snapValue, snapValue };
 
-    // // 기즈모 그리기 및 조작
-    // ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection),
-    //                      (ImGuizmo::OPERATION)m_GizmoOperation, ImGuizmo::LOCAL, 
-    //                      glm::value_ptr(transform), nullptr, snap ? snapValues : nullptr);
+    // 5. 기즈모 조작 (World Matrix 기준)
+    // 여기서 사용자가 조작하면 currentTransform(World) 값이 변합니다.
+    ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection),
+                         (ImGuizmo::OPERATION)m_GizmoOperation, ImGuizmo::LOCAL, 
+                         glm::value_ptr(currentTransform), nullptr, snap ? snapValues : nullptr);
 
-    // if (ImGuizmo::IsUsing()) {
-    //     glm::vec3 translation, rotation, scale;
-    //     ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(transform), 
-    //                                           glm::value_ptr(translation), 
-    //                                           glm::value_ptr(rotation), 
-    //                                           glm::value_ptr(scale));
+    // 6. 변경된 World 값을 Local로 변환하여 저장
+    if (ImGuizmo::IsUsing()) {
+        glm::mat4 localMatrix = currentTransform;
 
-    //     // 값 업데이트
-    //     m_SelectedEntity.set<Position>(translation);
-    //     // ImGuizmo는 Degree로 주는데 엔진이 Radian을 쓴다면 변환 필요 (여기선 엔진이 Radian 쓴다고 가정)
-    //     m_SelectedEntity.set<Rotation>(glm::radians(rotation)); 
-    //     m_SelectedEntity.set<Scale>(scale);
-    // }
+        // [부모 처리] 자식 엔티티라면: Local = inv(ParentWorld) * NewWorld
+        flecs::entity parent = m_SelectedEntity.parent();
+        if (parent.is_alive()) {
+            auto* parentWorld = parent.try_get<TransformMatrix, World>();
+            if (parentWorld) {
+                localMatrix = glm::inverse((glm::mat4)*parentWorld) * currentTransform;
+            }
+        }
+
+        // [GLM 분해] 행렬에서 Position, Rotation, Scale 추출
+        // ImGuizmo::Decompose 대신 glm::decompose를 써야 회전이 안정적입니다.
+        glm::vec3 translation, scale, skew;
+        glm::quat rotation;
+        glm::vec4 perspective;
+        glm::decompose(localMatrix, scale, rotation, translation, skew, perspective);
+
+        // 값 업데이트 (Local 태그 사용)
+        m_SelectedEntity.set<Position, Local>({translation});
+        
+        // Quaternion -> Euler Angles (Radian) 변환
+        m_SelectedEntity.set<Rotation, Local>({glm::eulerAngles(rotation)}); 
+        
+        m_SelectedEntity.set<Scale, Local>({scale});
+    }
 }
 
 void EditorLayer::DrawSceneHierarchy() {
     ImGui::Begin("Scene Hierarchy");
 
-    m_World.each([&](flecs::entity e, const TransformMatrix& t) {
-        // 이름 표시
-        std::string name = e.name().c_str();
-        if (name.empty()) name = "Entity " + std::to_string(e.id());
-        
-        ImGuiTreeNodeFlags flags = ((m_SelectedEntity == e) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
-        flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
-        
-        bool opened = ImGui::TreeNodeEx((void*)(uint64_t)e.id(), flags, "%s", name.c_str());
-        if (ImGui::IsItemClicked()) {
-            m_SelectedEntity = e;
-        }
-
-        if (opened) {
-            ImGui::TreePop();
-        }
-    });
+    // 1. SceneRoot 엔티티 찾기
+    flecs::entity root = m_World.lookup("SceneRoot");
+    
+    if (root.is_alive()) {
+        // 2. SceneRoot의 바로 아래 자식들부터 그리기 시작
+        // (SceneRoot 자체는 목록에 표시하지 않고, 그 내용물부터 보여줍니다)
+        root.children([this](flecs::entity child) {
+            DrawEntityNode(child);
+        });
+    } 
+    else {
+        // 혹시 SceneRoot가 아직 안 만들어졌을 경우 대비
+        ImGui::TextDisabled("SceneRoot not found");
+    }
 
     // 빈 공간 클릭 시 선택 해제
     if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered()) {
         m_SelectedEntity = flecs::entity::null();
     }
+
     ImGui::End();
 }
 
+void EditorLayer::DrawEntityNode(flecs::entity e) {
+    // 이름 가져오기
+    std::string name = e.name().c_str();
+    if (name.empty()) name = "Entity " + std::to_string(e.id());
+
+    // 트리 노드 플래그 설정
+    ImGuiTreeNodeFlags flags = ((m_SelectedEntity == e) ? ImGuiTreeNodeFlags_Selected : 0);
+    flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+
+    // 자식이 없으면 Leaf 노드(화살표 없음), 있으면 OpenOnArrow
+    // (flecs에서 자식 유무를 미리 알기 어려우므로 일단 그립니다. 
+    //  최적화를 원하면 e.child_count() 같은 API가 있는지 확인 필요하지만, 보통은 그냥 그려도 무방합니다.)
+    
+    bool opened = ImGui::TreeNodeEx((void*)(uint64_t)e.id(), flags, "%s", name.c_str());
+    
+    // 클릭 시 선택
+    if (ImGui::IsItemClicked()) {
+        m_SelectedEntity = e;
+    }
+
+    // 노드가 열렸다면 자식들을 재귀적으로 그림
+    if (opened) {
+        e.children([this](flecs::entity child) {
+            DrawEntityNode(child);
+        });
+        ImGui::TreePop();
+    }
+}
+
 void EditorLayer::DrawProperties() {
-    // ImGui::Begin("Properties");
-    // if (m_SelectedEntity.is_alive()) {
-    //     ImGui::Text("ID: %d", (int)m_SelectedEntity.id());
-    //     ImGui::Separator();
+    ImGui::Begin("Properties");
+    if (m_SelectedEntity.is_alive()) {
+        ImGui::Text("ID: %d", (int)m_SelectedEntity.id());
+        ImGui::Separator();
 
-    //     if (m_SelectedEntity.has<Position>()) {
-    //         if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-    //             // Position
-    //             Position* pos = m_SelectedEntity.get_mut<Position*>();
-    //             ImGui::DragFloat3("Position", (float*)pos, 0.1f);
+        if (m_SelectedEntity.has<TransformMatrix, Local>()) {
+            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+                // Position
+                Position* pos = m_SelectedEntity.try_get_mut<Position, Local>();
+                ImGui::DragFloat3("Position", (float*)pos, 0.1f);
 
-    //             // Rotation (Radian <-> Degree 변환)
-    //             Rotation* rot = m_SelectedEntity.get_mut<Rotation*>();
-    //             glm::vec3 rotDeg = glm::degrees(glm::vec3(*rot));
-    //             if (ImGui::DragFloat3("Rotation", glm::value_ptr(rotDeg), 0.1f)) {
-    //                 *rot = glm::radians(rotDeg);
-    //             }
+                // Rotation (Radian <-> Degree 변환)
+                Rotation* rot = m_SelectedEntity.try_get_mut<Rotation, Local>();
+                glm::vec3 rotDeg = glm::degrees(glm::vec3(*rot));
+                if (ImGui::DragFloat3("Rotation", glm::value_ptr(rotDeg), 0.1f)) {
+                    *rot = glm::radians(rotDeg);
+                }
 
-    //             // Scale
-    //             Scale* scale = m_SelectedEntity.get_mut<Scale*>();
-    //             ImGui::DragFloat3("Scale", (float*)scale, 0.1f);
-    //         }
-    //     }
+                // Scale
+                Scale* scale = m_SelectedEntity.try_get_mut<Scale, Local>();
+                ImGui::DragFloat3("Scale", (float*)scale, 0.1f);
+            }
+        }
 
-    //     // Camera Component
-    //     if (m_SelectedEntity.has<Camera>()) {
-    //         if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
-    //             Camera* cam = m_SelectedEntity.get_mut<Camera*>();
-    //             ImGui::DragFloat("FOV", &cam->fov, 0.1f, 1.0f, 179.0f);
-    //             ImGui::DragFloat("Near", &cam->nearPlane);
-    //             ImGui::DragFloat("Far", &cam->farPlane);
-    //             ImGui::Checkbox("Fisheye Mode", &cam->useFisheye);
-    //         }
-    //     }
+        // Camera Component
+        if (m_SelectedEntity.has<Camera>()) {
+            if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+                Camera* cam = m_SelectedEntity.try_get_mut<Camera>();
+                ImGui::DragFloat("FOV", &cam->fov, 0.1f, 1.0f, 179.0f);
+                ImGui::DragFloat("Near", &cam->nearPlane);
+                ImGui::DragFloat("Far", &cam->farPlane);
+                ImGui::Checkbox("Fisheye Mode", &cam->useFisheye);
+            }
+        }
 
-    //     // 컴포넌트 추가 버튼 (예시)
-    //     if (ImGui::Button("Add Component")) ImGui::OpenPopup("AddComponent");
+        // // 컴포넌트 추가 버튼 (예시)
+        // if (ImGui::Button("Add Component")) ImGui::OpenPopup("AddComponent");
 
-    //     if (ImGui::BeginPopup("AddComponent")) {
-    //         if (ImGui::MenuItem("Camera")) {
-    //             m_SelectedEntity.set<Camera>({60.0f, 0.1f, 1000.0f});
-    //             ImGui::CloseCurrentPopup();
-    //         }
-    //         ImGui::EndPopup();
-    //     }
+        // if (ImGui::BeginPopup("AddComponent")) {
+        //     if (ImGui::MenuItem("Camera")) {
+        //         m_SelectedEntity.set<Camera>({60.0f, 0.1f, 1000.0f});
+        //         ImGui::CloseCurrentPopup();
+        //     }
+        //     ImGui::EndPopup();
+        // }
 
-    // } else {
-    //     ImGui::TextDisabled("Select an entity.");
-    // }
-    // ImGui::End();
+    } else {
+        ImGui::TextDisabled("Select an entity.");
+    }
+    ImGui::End();
 }
 
 void EditorLayer::DrawMenuBar() {
@@ -291,20 +411,38 @@ void EditorLayer::DrawMenuBar() {
         }
         
         if (ImGui::BeginMenu("Edit")) {
-             if (ImGui::MenuItem("Translate", "W")) m_GizmoOperation = ImGuizmo::TRANSLATE;
-             if (ImGui::MenuItem("Rotate", "E")) m_GizmoOperation = ImGuizmo::ROTATE;
-             if (ImGui::MenuItem("Scale", "R")) m_GizmoOperation = ImGuizmo::SCALE;
-             ImGui::EndMenu();
+            if (ImGui::MenuItem("Select / None", "Q")) m_GizmoOperation = -1;
+            if (ImGui::MenuItem("Translate", "W")) m_GizmoOperation = ImGuizmo::TRANSLATE;
+            if (ImGui::MenuItem("Rotate", "E")) m_GizmoOperation = ImGuizmo::ROTATE;
+            if (ImGui::MenuItem("Scale", "R")) m_GizmoOperation = ImGuizmo::SCALE;
+            ImGui::EndMenu();
         }
         ImGui::EndMenuBar();
     }
 }
 
 void EditorLayer::HandleShortcuts() {
-    if (m_ViewportFocused) {
-        if (ImGui::IsKeyPressed(ImGuiKey_W)) m_GizmoOperation = ImGuizmo::TRANSLATE;
-        if (ImGui::IsKeyPressed(ImGuiKey_E)) m_GizmoOperation = ImGuizmo::ROTATE;
-        if (ImGui::IsKeyPressed(ImGuiKey_R)) m_GizmoOperation = ImGuizmo::SCALE;
+    //if (m_ViewportFocused) 
+    {
+        // [Q] 선택 모드 (기즈모 끄기)
+        if (ImGui::IsKeyPressed(ImGuiKey_Q)) {
+            m_GizmoOperation = -1; 
+        }
+        
+        // [W] 이동 (Translate)
+        if (ImGui::IsKeyPressed(ImGuiKey_W)) {
+            m_GizmoOperation = ImGuizmo::TRANSLATE;
+        }
+
+        // [E] 회전 (Rotate)
+        if (ImGui::IsKeyPressed(ImGuiKey_E)) {
+            m_GizmoOperation = ImGuizmo::ROTATE;
+        }
+
+        // [R] 크기 (Scale)
+        if (ImGui::IsKeyPressed(ImGuiKey_R)) {
+            m_GizmoOperation = ImGuizmo::SCALE;
+        }
     }
 
     bool ctrl = ImGui::GetIO().KeyCtrl;
@@ -317,9 +455,30 @@ void EditorLayer::NewScene() {
 }
 
 void EditorLayer::SaveScene() {
-
+    // 1. 포매팅 없는 Raw String 가져오기
+     RobotPal::SceneSerializer sceneSerializer(m_World);
+    std::string rawSceneData = sceneSerializer.SerializeToString();
+        
+    // 2. 저장 요청
+    FileDialog::Instance().Save(
+        "SceneSaveKey", 
+        "Save Scene", 
+        ".robotpal",           // [변경] 확장자 필터
+        "MyScene.robotpal",    // [변경] 기본 파일명
+        rawSceneData           // 내용 전달
+    );
 }
 
 void EditorLayer::LoadScene() {
-
+    FileDialog::Instance().Open(
+            "SceneLoadKey", 
+            "Load Scene", 
+            ".robotpal",  // [변경] 확장자 필터
+        [&](const FileData& data) {
+            // 원본 문자열 그대로 로드
+            RobotPal::SceneSerializer sceneSerializer(m_World);
+            sceneSerializer.DeserializeFromString(data.content);
+            std::cout << "Scene Loaded: " << data.fileName << std::endl;
+        }
+    );
 }
