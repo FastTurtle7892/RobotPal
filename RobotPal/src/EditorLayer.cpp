@@ -551,8 +551,8 @@ void EditorLayer::HandleShortcuts() {
     // 우클릭(카메라 이동) 중일 때는 단축키 처리를 하지 않음
     if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) return;
     
-    // 만약 텍스트 입력창(Inspector 등)을 쓰고 있다면 단축키 무시 (선택사항, 권장)
-    if (ImGui::GetIO().WantCaptureKeyboard) return;
+    // 만약 텍스트 입력창(Inspector 등)을 쓰고 있다면 단축키 무시
+    if (ImGui::GetIO().WantTextInput) return;
     
     //if (m_ViewportFocused) 
     {
