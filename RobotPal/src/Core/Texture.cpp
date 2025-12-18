@@ -65,11 +65,13 @@ void Texture::SetData(const void* data, int size) {
 
     switch (m_Format) {
         case TextureFormat::RGBA8:
-            format = GL_RGBA; type = GL_UNSIGNED_BYTE; break;
+        format = GL_RGBA; type = GL_UNSIGNED_BYTE; break;
         case TextureFormat::RGB8:
-            format = GL_RGB; type = GL_UNSIGNED_BYTE; break;
+        format = GL_RGB; type = GL_UNSIGNED_BYTE; break;
         case TextureFormat::RGBA16F:
-            format = GL_RGBA; type = GL_FLOAT; break;
+        format = GL_RGBA; type = GL_FLOAT; break;
+        case TextureFormat::RED_INTEGER:
+        format = GL_RED_INTEGER; type = GL_INT; break;
     }
 
     glBindTexture(GL_TEXTURE_2D, m_RendererID);
@@ -329,6 +331,11 @@ void Texture::CreateInternal() {
         internalFormat = GL_RGB8; dataFormat = GL_RGB; dataType = GL_UNSIGNED_BYTE;
     } else if (m_Format == TextureFormat::RGBA16F) {
         internalFormat = GL_RGBA16F; dataFormat = GL_RGBA; dataType = GL_FLOAT;
+    }
+    else if (m_Format == TextureFormat::RED_INTEGER) {
+        internalFormat = GL_R32I;        // 32비트 정수 저장
+        dataFormat = GL_RED_INTEGER;     // 픽셀 데이터 포맷
+        dataType = GL_INT;               // 데이터 타입
     } else if (m_Format == TextureFormat::DEPTH24_STENCIL8) {
         internalFormat = GL_DEPTH24_STENCIL8; dataFormat = GL_DEPTH_STENCIL; dataType = GL_UNSIGNED_INT_24_8;
     }
@@ -339,8 +346,13 @@ void Texture::CreateInternal() {
     if (m_Type == TextureType::Texture2D) {
         glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, m_Width, m_Height, 0, dataFormat, dataType, nullptr);
         
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        if (m_Format == TextureFormat::RED_INTEGER) {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        } else {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
         
         if (m_Format == TextureFormat::DEPTH24_STENCIL8) {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

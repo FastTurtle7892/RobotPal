@@ -104,8 +104,80 @@ RenderSystemModule::RenderSystemModule(flecs::world &world)
         m_QuadVAO->AddVertexBuffer(vb);
     }
 
+    RenderContext ctx;
+    ctx.PickingShader = AssetManager::Get().GetShader("Assets/Shaders/Picking.glsl");
+    ctx.PickingFBO = Framebuffer::Create(1280, 720, TextureFormat::RED_INTEGER, true);
+    world.set<RenderContext>(ctx);
+    //world.set<RenderSystemModule>(*this);
+
     InitSkybox();
     RegisterSystem();
+}
+
+flecs::entity RenderSystemModule::PickEntity(
+    flecs::world& world, 
+    int mouseX, int mouseY, 
+    int viewportWidth, int viewportHeight,
+    const glm::mat4& view, const glm::mat4& proj) 
+{
+    // 1. Context(데이터) 가져오기
+    // 값을 변경(Resize, Bind)해야 하므로 get_mut 사용
+    RenderContext* ctx = world.try_get_mut<RenderContext>();
+    
+    // 데이터가 없거나 쉐이더가 로드되지 않았으면 중단
+    if (!ctx || !ctx->PickingFBO || !ctx->PickingShader) return flecs::entity::null();
+
+    // 2. FBO 리사이즈 (뷰포트 크기가 바뀌었을 때만)
+    if (ctx->PickingFBO->GetWidth() != viewportWidth || ctx->PickingFBO->GetHeight() != viewportHeight) {
+        ctx->PickingFBO->Resize(viewportWidth, viewportHeight);
+    }
+
+    // 3. 렌더링 준비 (State 설정)
+    ctx->PickingFBO->Bind();
+    
+    RenderCommand::SetScissorTest(true);          // 가위 모드 켜기
+    RenderCommand::SetScissor(mouseX, mouseY, 1, 1); // 딱 1픽셀만 오리기
+    RenderCommand::ClearInteger(-1);              // -1(선택 안됨)로 초기화
+
+    // 4. 그리기 (ID 렌더링)
+    auto& shader = ctx->PickingShader;
+    shader->Bind();
+    shader->SetMat4("u_View", view);
+    shader->SetMat4("u_Projection", proj);
+
+    // 기존 쿼리(renderQuery)를 재사용하여 모든 메쉬 순회
+    renderQuery.each([&](flecs::entity e, const MeshFilter& mf, const MeshRenderer& mr, const TransformMatrix& tm) {
+        
+        // 엔티티 ID를 유니폼으로 전송 (정수)
+        shader->SetInt("u_EntityID", (int)e.id());
+        shader->SetMat4("u_Model", tm);
+        
+        // 메쉬 바인딩 및 그리기
+        auto mesh = AssetManager::Get().GetMesh(mf.meshID);
+        if (mesh) {
+            mesh->vao->Bind();
+            for (const auto& sub : mesh->subMeshes) {
+                glDrawElements(GL_TRIANGLES, sub.indexCount, GL_UNSIGNED_INT, (void*)(uintptr_t)sub.indexStart);
+            }
+        }
+    });
+
+    // 5. 픽셀 값 읽기 (동기화 지점)
+    // 1픽셀만 읽으므로 부하가 매우 적음
+    int pickedID = RenderCommand::ReadPixelInteger(mouseX, mouseY);
+
+    // 6. 정리 (State 복구)
+    RenderCommand::SetScissorTest(false);
+    ctx->PickingFBO->Unbind();
+
+    // 7. 결과 반환
+    // -1이면 빈 공간 클릭 -> null 반환
+    // 그 외엔 유효한 ID -> entity 반환
+    if (pickedID != -1) {
+        return world.entity(pickedID);
+    }
+    
+    return flecs::entity::null();
 }
 
 static glm::mat4 CreateViewMatrixFromWorld(const glm::mat4 &worldMatrix)

@@ -8,10 +8,24 @@
 #include "RobotPal/VertexArray.h"
 #include "RobotPal/Core/Texture.h"
 #include "RobotPal/Core/Framebuffer.h"
+
+struct RenderContext {
+    //TODO: 나중에 다른 리소스들도 옮기기
+    // [피킹 전용 리소스]
+    std::shared_ptr<Framebuffer> PickingFBO;
+    std::shared_ptr<Shader> PickingShader;
+};
+
 struct RenderSystemModule{
 public:
     RenderSystemModule(flecs::world &world);
 
+    flecs::entity PickEntity(
+        flecs::world& world, 
+        int mouseX, int mouseY, 
+        int viewportWidth, int viewportHeight,
+        const glm::mat4& view, const glm::mat4& proj
+    );
 private:
     flecs::world &world;
 

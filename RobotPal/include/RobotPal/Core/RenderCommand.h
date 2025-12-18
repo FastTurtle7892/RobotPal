@@ -14,6 +14,12 @@ public:
 
     static void Clear();
 
+    static void SetScissor(int x, int y, int width, int height);
+    static void SetScissorTest(bool enable);
+
+    static void ClearInteger(int value);
+    static int ReadPixelInteger(int x, int y);
+
     static void DrawIndexed(const std::shared_ptr<VertexArray>& vertexArray);
     
     static void DrawArrays(const std::shared_ptr<VertexArray>& vertexArray, uint32_t vertexCount);

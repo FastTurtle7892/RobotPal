@@ -23,6 +23,32 @@ void RenderCommand::Clear()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
+void RenderCommand::SetScissor(int x, int y, int width, int height) 
+{
+    glScissor(x, y, width, height);
+}
+
+void RenderCommand::SetScissorTest(bool enable) 
+{
+    if (enable) glEnable(GL_SCISSOR_TEST);
+    else glDisable(GL_SCISSOR_TEST);
+}
+
+void RenderCommand::ClearInteger(int value) 
+{
+    int clearVal = value;
+    glClearBufferiv(GL_COLOR, 0, &clearVal);
+    
+    glClear(GL_DEPTH_BUFFER_BIT);
+}
+
+int RenderCommand::ReadPixelInteger(int x, int y) 
+{
+    int pixelData = -1;
+    glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_INT, &pixelData);
+    return pixelData;
+}
+
 void RenderCommand::DrawIndexed(const std::shared_ptr<VertexArray> &vertexArray)
 {
     vertexArray->Bind();
