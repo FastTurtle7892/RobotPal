@@ -200,46 +200,58 @@ void EditorLayer::DrawViewport() {
         ImGui::Image(reinterpret_cast<void*>(textureID), viewportPanelSize, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
 
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && m_ViewportHovered && !ImGuizmo::IsOver()) 
+    {
+        // 1. 카메라 행렬 구하기 (기존 코드 활용)
+        const Camera* cam = cameraEnt.try_get_mut<Camera>();
+        const TransformMatrix* camTrans = cameraEnt.try_get_mut<TransformMatrix, World>();
+        
+        glm::mat4 view = CreateViewMatrixFromWorld(*camTrans);
+        float aspect = m_ViewportSize.x / m_ViewportSize.y;
+        glm::mat4 proj = glm::perspective(glm::radians(cam->fov), aspect, cam->nearPlane, cam->farPlane);
+
+        // 2. 좌표 변환 (Y축 반전 및 -1 보정)
+        auto [mx, my] = ImGui::GetMousePos();
+        mx -= m_ViewportBounds[0].x;
+        my -= m_ViewportBounds[0].y;
+        
+        int mouseX = (int)mx;
+        int mouseY = (int)(m_ViewportSize.y - my) - 1; // ★ -1 중요
+
+        // 3. 피킹 실행
+        if (mouseX >= 0 && mouseY >= 0 && mouseX < (int)m_ViewportSize.x && mouseY < (int)m_ViewportSize.y) 
         {
-            // 1. 카메라 컴포넌트 가져오기 (행렬 계산용)
-            const Camera* cam = cameraEnt.try_get_mut<Camera>();
-            const TransformMatrix* camTrans = cameraEnt.try_get_mut<TransformMatrix, World>(); // 또는 TransformMatrix, World
-            
-            if (cam && camTrans) {
-                // 2. View / Projection 행렬 계산
-                // (CreateViewMatrixFromWorld 함수가 EditorLayer 내부에 있다고 가정)
-                glm::mat4 view = CreateViewMatrixFromWorld(*camTrans); 
-                float aspect = m_ViewportSize.x / m_ViewportSize.y;
-                glm::mat4 proj = glm::perspective(glm::radians(cam->fov), aspect, cam->nearPlane, cam->farPlane);
+            auto* renderSystem = m_World.try_get_mut<RenderSystemModule>();
+            if (renderSystem) {
+                // A. 클릭된 엔티티 가져오기
+                flecs::entity clickedEntity = renderSystem->PickEntity(
+                    m_World, mouseX, mouseY, 
+                    (int)m_ViewportSize.x, (int)m_ViewportSize.y, 
+                    view, proj
+                );
 
-                // 3. 마우스 좌표 변환 (ImGui -> OpenGL)
-                auto [mx, my] = ImGui::GetMousePos();
-                mx -= m_ViewportBounds[0].x;
-                my -= m_ViewportBounds[0].y;
-                int mouseX = (int)mx;
-                int mouseY = (int)(m_ViewportSize.y - my); // Y축 반전
-
-                // 4. 유효 범위 체크 및 피킹 요청
-                if (mouseX >= 0 && mouseY >= 0 && mouseX < (int)m_ViewportSize.x && mouseY < (int)m_ViewportSize.y)
-                {
-                    // RenderSystemModule 가져오기
-                    auto* renderSystem = m_World.try_get_mut<RenderSystemModule>();
-                    if (renderSystem) {
-                        // ★ PickEntity 호출
-                        m_SelectedEntity = renderSystem->PickEntity(
-                            m_World, 
-                            mouseX, mouseY, 
-                            (int)m_ViewportSize.x, (int)m_ViewportSize.y, 
-                            view, proj
-                        );
-                        
-                        // 디버깅용 로그 (필요시 사용)
-                        // if (m_SelectedEntity.is_alive()) 
-                        //    std::cout << "Selected: " << m_SelectedEntity.path().c_str() << std::endl;
+                // B. [스마트 선택 로직] 부모 찾기
+                if (clickedEntity.is_alive()) {
+                    flecs::entity rootEntity = clickedEntity;
+                    while (true) {
+                        flecs::entity parent = rootEntity.parent();
+                        if (!parent.is_alive() || parent.name() == "SceneRoot") break;
+                        rootEntity = parent;
                     }
+
+                    // 이미 루트가 선택됐다면 자식 선택, 아니면 루트 선택
+                    if (m_SelectedEntity == rootEntity) {
+                        m_SelectedEntity = clickedEntity; 
+                        std::cout << "Selected Child: " << m_SelectedEntity.name().c_str() << std::endl;
+                    } else {
+                        m_SelectedEntity = rootEntity;
+                        std::cout << "Selected Root: " << m_SelectedEntity.name().c_str() << std::endl;
+                    }
+                } else {
+                    m_SelectedEntity = flecs::entity::null(); // 빈공간 -> 선택 해제
                 }
             }
         }
+    }
 
         UpdateCameraMovement(cameraEnt);
         // C. 기즈모 그리기
