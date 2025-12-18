@@ -157,7 +157,8 @@ flecs::entity RenderSystemModule::PickEntity(
         if (mesh) {
             mesh->vao->Bind();
             for (const auto& sub : mesh->subMeshes) {
-                glDrawElements(GL_TRIANGLES, sub.indexCount, GL_UNSIGNED_INT, (void*)(uintptr_t)sub.indexStart);
+                glDrawElements(GL_TRIANGLES, sub.indexCount, GL_UNSIGNED_INT,
+               (void *)(sub.indexStart * sizeof(uint32_t)));
             }
         }
     });
