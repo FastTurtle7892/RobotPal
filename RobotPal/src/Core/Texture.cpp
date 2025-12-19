@@ -1,7 +1,6 @@
 #include "RobotPal/Core/Texture.h"
 #include <cstring> // memcpy
 #include <algorithm> // std::max (혹시 모를 상황 대비)
-
 // 정적 멤버 초기화
 unsigned int Texture::s_ReadFBO = 0;
 
