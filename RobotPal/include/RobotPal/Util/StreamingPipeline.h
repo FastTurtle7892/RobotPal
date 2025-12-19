@@ -34,7 +34,6 @@ private:
     };
 
     void EncodeWorkerLoop();
-    void SendWorkerLoop();
 
 private:
     NetworkEngine* m_networkEngine = nullptr;
@@ -44,10 +43,5 @@ private:
     std::mutex m_encodeQueueMutex;
     std::condition_variable m_encodeQueueCv;
 
-    std::queue<std::vector<uint8_t>> m_packetQueue;
-    std::mutex m_packetQueueMutex;
-    std::condition_variable m_packetQueueCv;
-
     std::vector<std::thread> m_encodeThreads;
-    std::thread m_sendThread;
 };
