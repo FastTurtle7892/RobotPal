@@ -30,6 +30,7 @@ void StreamingSystemModule::RegisterSystem(flecs::world& world)
         .kind(flecs::PostFrame)
         .rate(2)
         .each([this](flecs::entity, const Camera&, const RenderTarget& rt, const VideoSender&) {
+            if(!m_world.get_mut<const NetworkEngineHandle>().instance->IsConnected()) return;
             auto tex = rt.fbo->GetColorAttachment();
             auto raw = tex->GetAsyncData(m_world.get_info()->frame_count_total);
             if (raw.empty()) return;

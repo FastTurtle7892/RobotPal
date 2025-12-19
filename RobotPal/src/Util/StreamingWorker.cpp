@@ -17,7 +17,8 @@ struct StreamingThreadConfig {
 static StreamingThreadConfig GetStreamingThreadConfig() {
 #ifdef __EMSCRIPTEN__
     #ifdef __EMSCRIPTEN_PTHREADS__
-        return {std::max(1u, std::thread::hardware_concurrency() - 3)};
+        unsigned max_web_workers = 8; // CMake의 8보다 작게 설정 (안전 마진)
+        return {std::max(1u, max_web_workers - 2)}; // main + network 제외
     #else
         return {1};     // encode worke  // send inline
     #endif

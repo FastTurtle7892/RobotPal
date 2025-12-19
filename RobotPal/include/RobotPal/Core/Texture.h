@@ -25,7 +25,7 @@ enum class TextureType {
 class Texture {
 public:
     // [생성자 1] 빈 텍스처 (FBO 연결용)
-    Texture(int width, int height, TextureFormat format = TextureFormat::RGB8, TextureType type = TextureType::Texture2D);
+    Texture(int width, int height, TextureFormat format = TextureFormat::RGBA8, TextureType type = TextureType::Texture2D);
 
     // [생성자 2] 데이터가 있는 텍스처 (이미지 로드용)
     Texture(int width, int height, const void* data, TextureFormat format = TextureFormat::RGBA8);
