@@ -8,13 +8,13 @@
 
 class Framebuffer {
 public:
-    static std::shared_ptr<Framebuffer> Create(int width, int height, TextureFormat colorFormat = TextureFormat::RGB8, bool useDepthTexture = false);
+    static std::shared_ptr<Framebuffer> Create(int width, int height, TextureFormat colorFormat = TextureFormat::RGBA8, bool useDepthTexture = false);
     static std::shared_ptr<Framebuffer> Create(std::shared_ptr<Texture> colorTex, std::shared_ptr<Texture> depthTex = nullptr);
 
     // [생성자 1: 일반 모드]
     // FBO가 스스로 텍스처를 생성하고 관리합니다. (가장 많이 사용)
     // useDepthTexture: true면 뎁스 텍스처 생성(그림자/포스트프로세싱), false면 RBO 생성(일반 렌더링)
-    Framebuffer(int width, int height, TextureFormat colorFormat = TextureFormat::RGB8, bool useDepthTexture = false);
+    Framebuffer(int width, int height, TextureFormat colorFormat = TextureFormat::RGBA8, bool useDepthTexture = false);
 
     // [생성자 2: 주입 모드]
     // 외부에서 만든 텍스처를 가져와서 FBO를 구성합니다. (핑퐁 버퍼, 그림자 맵, 멀티 타겟 등)

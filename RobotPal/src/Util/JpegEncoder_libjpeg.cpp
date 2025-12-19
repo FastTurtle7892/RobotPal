@@ -1,3 +1,13 @@
+/**
+ * @file JpegEncoder_libjpeg.cpp
+ * @author Hong YoonPyo (cgantro@gmail.com)
+ * @brief JPEG encoder implementation using libjpeg
+ * @version 0.1
+ * @date 2025-12-15
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include "RobotPal/Util/JpegEncoder.h"
 #include <stdio.h>
 

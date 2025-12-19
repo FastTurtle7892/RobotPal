@@ -123,7 +123,6 @@ void TcpNetworkTransport::RecvWorker()
             break;
         }
     }
-    m_IsRunning = false; // 연결 끊김 표시
 }
 
 void TcpNetworkTransport::SendWorker()
