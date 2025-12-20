@@ -98,5 +98,16 @@ struct ControllerComponent {
     Entity entity;
 };
 
+struct GripperLogic {
+    bool isGripping = false; // 현재 잡고 있는가?
+    flecs::entity attachedEntity; // 잡은 물체의 ID 
+    float grabRange = 1.f; // 잡을 수 있는 거리
+    
+    bool wasPressed = false;
+};
 
+// 차 같은건 잡으면 안 되긴 함 ㅋ
+struct Grabbable {
+    Entity entity;
+};
 #endif

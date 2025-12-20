@@ -21,7 +21,7 @@
 #include <memory>
 #include <json.hpp>
 
-static std::shared_ptr<IRobotController> g_Controller;
+static std::shared_ptr<SimController> g_Controller;
 static Entity prefabEntity;
 static float cam_W = 1632.f/2.f, cam_H = 1232.f/2.f;
 std::shared_ptr<Framebuffer> camView;
@@ -32,8 +32,25 @@ void SandboxScene::OnEnter()
     prefabEntity.GetHandle().is_a(modelPrefab);
     prefabEntity.SetLocalPosition(glm::vec3(0.f, 0.f, 0.35f));
     prefabEntity.SetLocalRotation(glm::radians(glm::vec3(0.f, -90.f, 0.f)));
+
+    Entity ee = prefabEntity.FindChildByNameRecursive(prefabEntity.GetHandle(), "EE");
+    if (ee.IsValid()) {
+        ee.Set<GripperLogic>({false, flecs::entity::null(), 1.5f}); // 범위 1.5f
+    // 위치 확인용 디버깅
+        std::cout << "[Init] GripperLogic added to EE.\n";
+    }   
     
+    // box
     
+    auto boxModel = AssetManager::Get().GetPrefab(m_World, "./Assets/box.glb");
+    auto boxEntity=CreateEntity("box");
+    boxEntity.GetHandle().is_a(boxModel);
+    boxEntity.Set<Grabbable>({});
+    boxEntity.SetLocalPosition(glm::vec3(0.0f, 0.125f, 0.0f));
+    boxEntity.SetLocalRotation(glm::radians(glm::vec3(0.f, 0.f, 0.f)));
+    
+    std::cout << "[Init] Grabbable component added to box entity.\n";
+    // car
     auto modelPrefab2 = AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
     auto prefabEntity2 = CreateEntity("CarGroups");
     prefabEntity2.GetHandle().is_a(modelPrefab2);
@@ -73,8 +90,8 @@ void SandboxScene::OnEnter()
         robotCamera.SetParent(attachPoint);
     }
 
-    g_Controller = std::make_unique<HybridController>(prefabEntity);
-
+    // g_Controller = std::make_unique<HybridController>(prefabEntity);
+    g_Controller = std::make_shared<SimController>(prefabEntity, m_World);
     if (g_Controller->Init()) {
         std::cout << ">>> Hybrid Controller (Shared Entity) Initialized!" << std::endl;
     }
@@ -101,7 +118,7 @@ void SandboxScene::OnUpdate(float dt)
     if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) v = -speed;
     if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) w = turn_speed;
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) w = -turn_speed;
-
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) g_Controller->TryGrip();
     g_Controller->Move(v, w);
     g_Controller->Update(dt);
 

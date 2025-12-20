@@ -69,6 +69,7 @@ void EngineApp::Init()
 
     AssetManager::Get().GetPrefab(m_World, "./Assets/jetank.glb");
     AssetManager::Get().GetPrefab(m_World, "./Assets/cars.glb");
+    AssetManager::Get().GetPrefab(m_World, "./Assets/box.glb");
 }
 
 void EngineApp::MainLoop()
