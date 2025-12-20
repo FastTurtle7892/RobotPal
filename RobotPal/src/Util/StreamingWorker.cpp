@@ -4,6 +4,7 @@
 #include "RobotPal/Util/bench.h"
 
 #include <algorithm>
+#include <vector>
 
 static PerfStats perfEncode;
 
@@ -17,10 +18,10 @@ struct StreamingThreadConfig {
 static StreamingThreadConfig GetStreamingThreadConfig() {
 #ifdef __EMSCRIPTEN__
     #ifdef __EMSCRIPTEN_PTHREADS__
-        unsigned max_web_workers = 8; // CMake의 8보다 작게 설정 (안전 마진)
-        return {std::max(1u, max_web_workers - 2)}; // main + network 제외
+        unsigned max_web_workers = 8; 
+        return {std::max(1u, max_web_workers - 2)};
     #else
-        return {1};     // encode worke  // send inline
+        return {1};
     #endif
 #else
     // Native TCP
@@ -87,15 +88,22 @@ void StreamingPipeline::PushFrame(
 }
 
 // ---------------------------------------------
-// Encode worker
+// Encode worker (Optimized)
 // ---------------------------------------------
 void StreamingPipeline::EncodeWorkerLoop() {
-    // 일단 이거 수정은 해야할거같음 이름 같은건 일단 내가 핫픽스 해드림 - 준우
-    // std::unique_ptr<JpegEncoder> jpeg(CreateJpegEncoder());
-    JpegEncoder* jpeg=CreateJpegEncoder();
+    // JpegEncoder 생성
+    JpegEncoder* jpeg = CreateJpegEncoder();
 
+    // [Optimized] 루프 외부에서 버퍼 할당 (메모리 재사용)
     std::vector<uint8_t> rgbBuffer;
-    std::vector<uint8_t> packetBuffer;
+    std::vector<uint8_t> jpegOut;
+    std::vector<uint8_t> packet;
+    
+    // 예상되는 최대 버퍼 크기 예약 (예: 1MB)
+    // 해상도에 따라 다를 수 있으나 빈번한 재할당 방지용
+    rgbBuffer.reserve(2000 * 2000 * 4);
+    jpegOut.reserve(1024 * 1024);
+    packet.reserve(1024 * 1024 + 128);
 
     while (m_isRunning.load()) {
         FrameEncodeJob job;
@@ -106,7 +114,7 @@ void StreamingPipeline::EncodeWorkerLoop() {
             });
 
             if (!m_isRunning.load() && m_encodeQueue.empty())
-                return;
+                break; // return 대신 break로 리소스 정리 유도
 
             job = std::move(m_encodeQueue.front());
             m_encodeQueue.pop();
@@ -114,21 +122,22 @@ void StreamingPipeline::EncodeWorkerLoop() {
 
         const uint8_t* rgbPtr = nullptr;
 
+        // RGB 변환 또는 포인터 설정
         if (job.components == 3) {
             rgbPtr = job.pixels.data();
         } else if (job.components == 4) {
             size_t pixelCount = (size_t)job.width * (size_t)job.height;
             size_t requiredSize = pixelCount * 3;
 
-            if( rgbBuffer.size() < requiredSize )
+            // 필요시 버퍼 크기 증가 (capacity 내라면 재할당 없음)
+            if(rgbBuffer.size() < requiredSize) 
                 rgbBuffer.resize(requiredSize);
-
-            if(rgbBuffer.size() != requiredSize) rgbBuffer.resize(requiredSize);
 
             const uint8_t* s = job.pixels.data();
             uint8_t* d = rgbBuffer.data();
 
-            for (int i = 0; i < job.width * job.height; ++i) {
+            // RGBA -> RGB 변환
+            for (size_t i = 0; i < pixelCount; ++i) {
                 d[0] = s[0];
                 d[1] = s[1];
                 d[2] = s[2];
@@ -140,7 +149,10 @@ void StreamingPipeline::EncodeWorkerLoop() {
             continue;
         }
 
-        std::vector<uint8_t> jpegOut;
+        // JPEG 인코딩
+        // [Optimized] 기존 벡터 재사용 (clear만 호출)
+        jpegOut.clear();
+        
         double t0 = now_ms();
         bool ok = jpeg->EncodeRGB(
             rgbPtr,
@@ -156,19 +168,32 @@ void StreamingPipeline::EncodeWorkerLoop() {
 
         perfEncode.add(t1 - t0);
 
-        // Packet: [uint32 size][jpeg bytes]
+        // Packet 생성: [Header 4bytes] + [JPEG Body]
         uint32_t len = static_cast<uint32_t>(jpegOut.size());
-        std::vector<uint8_t> packet;
-        packet.reserve(4 + jpegOut.size());
+        
+        // [Optimized] 패킷 버퍼 재사용
+        packet.clear();
+        
+        // 헤더 공간 + 데이터 공간 확보
+        // reserve는 현재 capacity보다 클 때만 재할당하므로 안전
+        if (packet.capacity() < 4 + len) {
+            packet.reserve(4 + len); 
+        }
 
+        // 헤더
         packet.push_back(len & 0xFF);
         packet.push_back((len >> 8) & 0xFF);
         packet.push_back((len >> 16) & 0xFF);
         packet.push_back((len >> 24) & 0xFF);
+        
+        // 데이터 (insert 최적화 활용)
         packet.insert(packet.end(), jpegOut.begin(), jpegOut.end());
 
         if(m_networkEngine) {
-            m_networkEngine->SendPacket(std::move(packet));
+            // NetworkEngine::SendPacket은 const std::vector&를 받으므로 
+            // 복사가 발생하지만, 여기서 packet 인스턴스 자체는 유지되어 
+            // 다음 루프에서 재사용됨.
+            m_networkEngine->SendPacket(packet);
         }
     }
 }
