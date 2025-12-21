@@ -272,7 +272,6 @@ void ControllerSystemModule::RegisterSystem(flecs::world &world)
 
                 Entity joint = m_ServoEntities[id];
                 glm::vec3 axis = m_ServoConfigMap[id].axis;
-                std::cout << "[Controller] Updating Servo ID " << id << " to Angle " << cmd.angle << " with Speed " << cmd.speed << "\n";
                 float target = cmd.angle;
                 float current = m_ServoCurrentAngles[id];
                 float speed = cmd.speed; 
