@@ -7,50 +7,38 @@
 #include <iostream>
 #include <cmath>
 #include <glm/glm.hpp>
+#include <GLFW/glfw3.h>
 
-// 생성자 부분만 수정하면 됩니다.
+// 생성자
 ControllerSystemModule::ControllerSystemModule(flecs::world &world)
 {
     auto handle = world.get_mut<const NetworkEngineHandle>();
     netEngine = handle.instance;
 
     // ------------------------------------------------------------------
-    // [수정] 관절 매핑 및 회전축 재설정
+    // [설정] 관절 매핑 및 회전축 설정
     // ------------------------------------------------------------------
     
     // [ID 1] Base (좌우 회전) -> "Arm0"
-    // Y축(0, 1, 0) 기준 회전 (정상)
     m_ServoConfigMap[1] = { "Arm0", glm::vec3(0, -1, 0) }; 
 
     // [ID 2] Shoulder (어깨) -> "Arm1"
-    // X축(1, 0, 0) 기준 회전 (상하 움직임)
     m_ServoConfigMap[2] = { "Arm1", glm::vec3(1, 0, 0) }; 
 
     // [ID 3] Elbow (팔꿈치) -> "Arm2"
-    // X축(1, 0, 0) 기준 회전 (상하 움직임)
     m_ServoConfigMap[3] = { "Arm2", glm::vec3(1, 0, 0) }; 
 
-    // [ID 4] Gripper -> "EE"
-    // [설명] 모델이 손가락 분리가 안 된 통짜 모델이라, 집는 동작 대신 
-    // 미세하게 회전하거나 움직이지 않게 설정합니다.
+    // [ID 4] Gripper -> "EE" (집게 끝)
     m_ServoConfigMap[4] = { "EE", glm::vec3(0.1, 0, 0) }; 
 
-    // [ID 5] Camera Tilt -> "CamBase" (카메라랑 가장 가까운 관절)
-    // [수정] 기존 Y축(좌우) -> X축(1, 0, 0)으로 변경하여 "위아래"로 움직이게 함
+    // [ID 5] Camera Tilt -> "CamBase"
     m_ServoConfigMap[5] = { "CamBase", glm::vec3(1, 0, 0) };
 
-    std::cout << "[Controller] Servo Config Updated: CamBase(Axis X), Arm0(Axis Y)\n";
+    std::cout << "[Controller] Servo Config Initialized.\n";
 
     RegisterObserver(world);
     RegisterSystem(world);
 }
-// ... 나머지 코드는 그대로 유지 ...
-
-// ... (나머지 함수들은 기존과 동일하게 유지) ...
-
-// [참고] 디버그 함수 및 RegisterObserver, RegisterSystem 등은 
-// 이전에 드린 코드 그대로 유지하시면 됩니다.
-// (PrintHierarchy 함수가 있어야 나중에 또 이름 확인할 때 편합니다)
 
 void ControllerSystemModule::PrintHierarchy(Entity entity, int depth)
 {
@@ -64,6 +52,9 @@ void ControllerSystemModule::PrintHierarchy(Entity entity, int depth)
     });
 }
 
+// ------------------------------------------------------------------
+// [수정됨] 초기화 옵저버 (컴포넌트 부착 로직 추가)
+// ------------------------------------------------------------------
 void ControllerSystemModule::RegisterObserver(flecs::world &world)
 {
     world.observer<const ControllerComponent>()
@@ -79,6 +70,7 @@ void ControllerSystemModule::RegisterObserver(flecs::world &world)
             m_ServoEntities.clear();
             m_ServoCurrentAngles.clear();
 
+            // 1. 관절 매핑
             for (auto const& [id, config] : m_ServoConfigMap)
             {
                 Entity joint = m_Entity.FindChildByNameRecursive(m_Entity.GetHandle(), config.nodeName);
@@ -96,8 +88,12 @@ void ControllerSystemModule::RegisterObserver(flecs::world &world)
         });
 }
 
+// ------------------------------------------------------------------
+// 시스템 등록 (주행, 서보, 그리퍼 로직)
+// ------------------------------------------------------------------
 void ControllerSystemModule::RegisterSystem(flecs::world &world)
 {
+    // 1. 주행 및 서보 제어 시스템
     world.system<const ControllerComponent>()
         .kind(flecs::OnUpdate)
         .each([&](flecs::entity e, const ControllerComponent &)
@@ -111,25 +107,25 @@ void ControllerSystemModule::RegisterSystem(flecs::world &world)
                 DriveCommand driveCmd{};
                 ServoCommnad servoCmd{};
                 CommandType type = ParseJson(*packetOpt, &driveCmd, &servoCmd);
-                std::cout << "[Controller] Received Command Type: " << static_cast<int>(type) << "\n";
-                std::cout << "[Controller] Drive Command - Left: " << driveCmd.left << ", Right: " << driveCmd.right << "\n";
+                
+                // 패킷 로그 (필요 시 주석 해제)
+                // std::cout << "[Controller] Cmd Type: " << static_cast<int>(type) << "\n";
+
                 if (type == CommandType::Drive) {
                     m_LastDriveCmd = driveCmd;
                     m_HasLastDriveCmd = true;
                 }
                 else if (type == CommandType::Servo) {
                     m_LastServoCmds[servoCmd.id] = servoCmd;
-                    // 디버깅용: 패킷 수신 확인                
                 }
                 packetOpt = netEngine->GetPacket();
             }
 
-            // ... (Drive 로직 생략 - 기존 유지) ...
+            // (1) 주행 로직 (Dead Reckoning)
             if (m_HasLastDriveCmd) {
-                 // 기존 주행 코드 복사해서 유지하세요
                  float leftInput  = m_LastDriveCmd.left;
                  float rightInput = m_LastDriveCmd.right;
-                 // [물리 상수]
+                 
                  const float kMetersPerDegree = 0.000433f; 
                  const float kTrackWidth      = 0.7f;      
                  const float kSlipRatio       = 0.65f;     
@@ -156,7 +152,7 @@ void ControllerSystemModule::RegisterSystem(flecs::world &world)
                  m_Entity.SetLocalRotation(rot);
             }
 
-            // Servo 제어 로직
+            // (2) 서보 제어 로직
             for (auto& [id, cmd] : m_LastServoCmds)
             {
                 if (m_ServoEntities.find(id) == m_ServoEntities.end()) continue;
@@ -177,8 +173,9 @@ void ControllerSystemModule::RegisterSystem(flecs::world &world)
                 m_ServoCurrentAngles[id] = current;
 
                 float rad = glm::radians(current);
-                // 축 기반 회전 적용
                 joint.SetLocalRotation(axis * rad); 
             }
         });
+
+    // 2. 그리퍼(집게) 로직 시스템 (G키 토글 + 디버깅)
 }
