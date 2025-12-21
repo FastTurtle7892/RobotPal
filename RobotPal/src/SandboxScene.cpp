@@ -35,7 +35,7 @@ void SandboxScene::OnEnter()
 
     Entity ee = prefabEntity.FindChildByNameRecursive(prefabEntity.GetHandle(), "EE");
     if (ee.IsValid()) {
-        ee.Set<GripperLogic>({false, flecs::entity::null(), 1.5f}); // 범위 1.5f
+        ee.Set<GripperLogic>({false, 0.025f,false, Entity()}); // 범위 1.5f
     // 위치 확인용 디버깅
         std::cout << "[Init] GripperLogic added to EE.\n";
     }   

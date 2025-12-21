@@ -13,8 +13,8 @@
 #include "RobotPal/Components/Components.h"
 #include "RobotPal/Util/Movement.h"
 #include "RobotPal/Entity.h"
-#include <glm/gtx/norm.hpp> // distance2 함수용
-#include <glm/gtx/matrix_decompose.hpp> // 행렬 분해용 헤더 필수!
+#include <glm/gtx/norm.hpp> 
+#include <glm/gtx/matrix_decompose.hpp> 
 
 SimController::SimController(Entity &entity, flecs::world &world)
     : m_Entity(entity), m_World(world)
@@ -88,15 +88,16 @@ void SimController::TryGrip()
     // =================================================================
     // [1] 놓기 (Release)
     // =================================================================
-    if (m_isGripping) 
+    if (m_GripperEntity.Get<GripperLogic>().isGripping) 
     {
-        if (m_attachedEntity.IsValid()) 
+        Entity &attachedEntity = m_GripperEntity.Get<GripperLogic>().attachedEntity;
+        if (attachedEntity.IsValid()) 
         {
 
             // 1. 현재(그리퍼에 매달린 상태)의 '월드 행렬' 가져오기
             // Entity 래퍼 내부의 flecs handle을 꺼내서 get()을 호출해야 합니다.
             // (get_mut은 수정용이므로 읽기만 할 때는 get()이 안전합니다)
-            const TransformMatrix* worldMat = &m_attachedEntity.GetHandle().get<TransformMatrix, World>();
+            const TransformMatrix* worldMat = &attachedEntity.GetHandle().get<TransformMatrix, World>();
 
             glm::vec3 worldPos(0.0f);
             glm::vec3 worldRotEuler(0.0f);
@@ -122,17 +123,17 @@ void SimController::TryGrip()
             // felm_GripperEntity (오타 수정) -> m_GripperEntity
             // Entity 래퍼에 Remove 함수가 없다면 GetHandle().remove()를 써야 합니다.
             // 여기서는 Entity 래퍼의 방식(SetParent 등)을 고려해 flecs 원본 함수로 확실하게 끊습니다.
-            m_attachedEntity.GetHandle().remove(flecs::ChildOf, m_GripperEntity.GetHandle());
+            attachedEntity.GetHandle().remove(flecs::ChildOf, m_GripperEntity.GetHandle());
 
             // 4. [핵심] 추출한 '월드 좌표'를 '내 로컬 좌표'로 덮어쓰기
             // 함수 이름(Set)을 명시해야 합니다.
-            m_attachedEntity.SetLocalPosition({worldPos});
-            m_attachedEntity.SetLocalRotation({worldRotEuler});
+            attachedEntity.SetLocalPosition({worldPos});
+            attachedEntity.SetLocalRotation({worldRotEuler});
 
         }
 
-        m_attachedEntity = Entity(); // 혹은 flecs::entity::null()에 대응하는 초기화
-        m_isGripping = false;
+        attachedEntity = Entity(); // 혹은 flecs::entity::null()에 대응하는 초기화
+        m_GripperEntity.Get<GripperLogic>().isGripping = false;
         m_currentCooldown = GRIP_COOLDOWN_TIME;
         return;
     }
@@ -152,7 +153,8 @@ void SimController::TryGrip()
     }
 
     flecs::entity bestTarget = flecs::entity::null();
-    float minStartDistSq = m_grabRange * m_grabRange;
+    float grabRange = m_GripperEntity.Get<GripperLogic>().grabRange;
+    float minStartDistSq = grabRange * grabRange;
 
     // 2. Grabbable 검색
     auto q = m_Entity.GetHandle().world().query<Grabbable>();
@@ -191,8 +193,8 @@ void SimController::TryGrip()
         // 크기는 유지 (Scale은 건드리지 않거나 1로 리셋)
         // target.set<Scale>({glm::vec3(1.0f)});
 
-        m_attachedEntity = bestTarget;
-        m_isGripping = true;
+        m_GripperEntity.Get<GripperLogic>().attachedEntity = bestTarget;
+        m_GripperEntity.Get<GripperLogic>().isGripping = true;
     }
 
     m_currentCooldown = GRIP_COOLDOWN_TIME;
