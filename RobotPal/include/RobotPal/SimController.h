@@ -29,6 +29,10 @@ private:
     float m_currentCooldown = 0.0f;       // 현재 남은 쿨타임
     const float GRIP_COOLDOWN_TIME = 0.5f; // 0.5초 동안 재입력 방지
     
+
+    float m_currentCooldown = 0.0f;       // 현재 남은 쿨타임
+    const float GRIP_COOLDOWN_TIME = 0.5f; // 0.5초 동안 재입력 방지
+    Entity m_attachedEntity; // 현재 잡고 있는 물체
     // 이동 상태
     float m_TargetV = 0.0f;
     float m_TargetW = 0.0f;
