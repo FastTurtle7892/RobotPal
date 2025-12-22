@@ -42,16 +42,22 @@ void RenderCommand::ClearInteger(int value)
     glClear(GL_DEPTH_BUFFER_BIT);
 }
 
-int RenderCommand::ReadPixelInteger(int x, int y) 
+uint64_t RenderCommand::ReadPixelID(int x, int y) 
 {
-    // [수정] 4채널 데이터를 받기 위해 배열 사용 (R, G, B, A)
     int pixelData[4] = { -1, 0, 0, 0 };
     
-    // [수정] GL_RGBA_INTEGER 포맷으로 읽기
+    // RGBA_INTEGER 포맷으로 읽기 (PC fix 적용됨)
     glReadPixels(x, y, 1, 1, GL_RGBA_INTEGER, GL_INT, pixelData);
+
+    // 배경(-1)인 경우 체크 (Low가 -1이면 선택 안됨)
+    if (pixelData[0] == -1) return 0; // Flecs에서 0은 null entity
+
+    // [수정] R(Low) + G(High) 채널을 합쳐서 64비트 ID 복원
+    uint32_t low = (uint32_t)pixelData[0];
+    uint32_t high = (uint32_t)pixelData[1];
     
-    // 첫 번째 값(R 채널)이 Entity ID임
-    return pixelData[0];
+    uint64_t recoveredID = ((uint64_t)high << 32) | low;
+    return recoveredID;
 }
 
 void RenderCommand::DrawIndexed(const std::shared_ptr<VertexArray> &vertexArray)

@@ -19,11 +19,14 @@ void main()
 precision highp float;
 precision highp int;
 
+// 4채널 정수 출력 (R: Low, G: High, B: 0, A: 0)
 layout(location = 0) out ivec4 o_EntityID;
 
-uniform int u_EntityID;
+// 64비트 ID를 쪼개서 받음
+uniform int u_EntityID_Low;
+uniform int u_EntityID_High;
+
 void main() 
 {
-    // R 채널에만 ID를 쓰고 나머지는 0으로 채움
-    o_EntityID = ivec4(u_EntityID, 0, 0, 0);
+    o_EntityID = ivec4(u_EntityID_Low, u_EntityID_High, 0, 0);
 }

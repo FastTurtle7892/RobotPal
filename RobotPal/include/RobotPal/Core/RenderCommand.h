@@ -18,7 +18,7 @@ public:
     static void SetScissorTest(bool enable);
 
     static void ClearInteger(int value);
-    static int ReadPixelInteger(int x, int y);
+    static uint64_t ReadPixelID(int x, int y);
 
     static void DrawIndexed(const std::shared_ptr<VertexArray>& vertexArray);
     
