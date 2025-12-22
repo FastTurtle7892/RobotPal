@@ -230,7 +230,7 @@ void EditorLayer::DrawViewport() {
                 );
 
                 // B. [스마트 선택 로직] 부모 찾기
-                if (clickedEntity.is_alive()) {
+                if (clickedEntity!=flecs::entity::null() && clickedEntity.is_alive()) {
                     flecs::entity rootEntity = clickedEntity;
                     while (true) {
                         flecs::entity parent = rootEntity.parent();

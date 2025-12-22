@@ -147,9 +147,13 @@ flecs::entity RenderSystemModule::PickEntity(
 
     // 기존 쿼리(renderQuery)를 재사용하여 모든 메쉬 순회
     renderQuery.each([&](flecs::entity e, const MeshFilter& mf, const MeshRenderer& mr, const TransformMatrix& tm) {
-        
+        uint64_t fullID = e.id();
+        int idLow = (int)(fullID & 0xFFFFFFFF);         // 하위 32비트
+        int idHigh = (int)((fullID >> 32) & 0xFFFFFFFF); // 상위 32비트
+
         // 엔티티 ID를 유니폼으로 전송 (정수)
-        shader->SetInt("u_EntityID", (int)e.id());
+        shader->SetInt("u_EntityID_Low", idLow);
+        shader->SetInt("u_EntityID_High", idHigh);
         shader->SetMat4("u_Model", tm);
         
         // 메쉬 바인딩 및 그리기
@@ -165,7 +169,7 @@ flecs::entity RenderSystemModule::PickEntity(
 
     // 5. 픽셀 값 읽기 (동기화 지점)
     // 1픽셀만 읽으므로 부하가 매우 적음
-    int pickedID = RenderCommand::ReadPixelInteger(mouseX, mouseY);
+    uint64_t pickedID = RenderCommand::ReadPixelID(mouseX, mouseY);
 
     // 6. 정리 (State 복구)
     RenderCommand::SetScissorTest(false);
