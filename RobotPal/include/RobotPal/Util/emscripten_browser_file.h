@@ -90,7 +90,12 @@ EM_JS_INLINE(void, download, (char const *filename, char const *mime_type, void 
   /// Offer a buffer in memory as a file to download, specifying download filename and mime type
   var a = document.createElement('a');
   a.download = UTF8ToString(filename);
-  a.href = URL.createObjectURL(new Blob([new Uint8Array(Module["HEAPU8"].buffer, buffer, buffer_size)], {type: UTF8ToString(mime_type)}));
+  
+  // [Fix] SharedArrayBuffer(멀티스레딩) 호환성을 위해 데이터 복사 수행
+  var view = new Uint8Array(Module["HEAPU8"].buffer, buffer, buffer_size);
+  var copy = new Uint8Array(view); 
+
+  a.href = URL.createObjectURL(new Blob([copy], {type: UTF8ToString(mime_type)}));
   a.click();
 });
 #pragma GCC diagnostic pop
