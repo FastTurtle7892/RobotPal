@@ -21,7 +21,7 @@
 #include <memory>
 #include <json.hpp>
 
-static std::shared_ptr<SimController> g_Controller;
+static std::unique_ptr<SimController> g_Controller;
 static Entity prefabEntity;
 static float cam_W = 1632.f/2.f, cam_H = 1232.f/2.f;
 std::shared_ptr<Framebuffer> camView;
@@ -35,7 +35,7 @@ void SandboxScene::OnEnter()
 
     Entity ee = prefabEntity.FindChildByNameRecursive(prefabEntity.GetHandle(), "EE");
     if (ee.IsValid()) {
-        ee.Set<GripperLogic>({false, flecs::entity::null(), 1.5f}); // 범위 1.5f
+        ee.Set<GripperLogic>({false, 0.025f,false, Entity()}); // 범위 1.5f
     // 위치 확인용 디버깅
         std::cout << "[Init] GripperLogic added to EE.\n";
     }   
@@ -90,8 +90,8 @@ void SandboxScene::OnEnter()
         robotCamera.SetParent(attachPoint);
     }
 
-    // g_Controller = std::make_unique<HybridController>(prefabEntity);
-    g_Controller = std::make_shared<SimController>(prefabEntity, m_World);
+    g_Controller = std::make_unique<SimController>(prefabEntity,m_World);
+    
     if (g_Controller->Init()) {
         std::cout << ">>> Hybrid Controller (Shared Entity) Initialized!" << std::endl;
     }

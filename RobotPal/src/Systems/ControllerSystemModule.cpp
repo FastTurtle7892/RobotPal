@@ -1,3 +1,14 @@
+/**
+ * @file ControllerSystemModule.cpp
+ * @author your name (you@domain.com)
+ * @brief 
+ * @version 0.1
+ * @date 2025-12-22
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+#define GLM_ENABLE_EXPERIMENTAL
 #include "RobotPal/Systems/ControllerSystemModule.h"
 #include "RobotPal/Components/Components.h"
 #include "RobotPal/Network/NetworkEngine.h"
@@ -8,6 +19,8 @@
 #include <cmath>
 #include <glm/glm.hpp>
 #include <GLFW/glfw3.h>
+#include <glm/gtx/norm.hpp> 
+#include <glm/gtx/matrix_decompose.hpp> 
 
 // 생성자
 ControllerSystemModule::ControllerSystemModule(flecs::world &world)
@@ -51,10 +64,67 @@ void ControllerSystemModule::PrintHierarchy(Entity entity, int depth)
         PrintHierarchy(Entity(child), depth + 1);
     });
 }
+// 잡기 놓기 헬퍼 함수
 
-// ------------------------------------------------------------------
-// [수정됨] 초기화 옵저버 (컴포넌트 부착 로직 추가)
-// ------------------------------------------------------------------
+void ControllerSystemModule::Grip()
+{
+    // 구현 생략 (필요 시 추가)
+    auto &m_GripperEntity = m_ServoEntities[4];
+    if (!m_GripperEntity.IsValid())
+        return;
+
+    // 1. 그리퍼 월드 위치
+    glm::vec3 gripperPos(0.0f);
+
+    if (m_GripperEntity.GetHandle().has<TransformMatrix, World>())
+    {
+        const TransformMatrix& mat =
+            m_GripperEntity.GetHandle().get<TransformMatrix, World>();
+        gripperPos = glm::vec3(mat[3]);
+    }
+
+    flecs::entity bestTarget = flecs::entity::null();
+    float grabRange = m_GripperEntity.Get<GripperLogic>().grabRange;
+    float minDistSq = grabRange * grabRange;
+
+    // 2. Grabbable 탐색
+    auto q = m_Entity.GetHandle().world().query<Grabbable>();
+    q.each([&](flecs::entity e, Grabbable&)
+    {
+        if (e == m_Entity.GetHandle() ||
+            e == m_GripperEntity.GetHandle())
+            return;
+
+        if (!e.has<TransformMatrix, World>())
+            return;
+
+        const TransformMatrix& mat = e.get<TransformMatrix, World>();
+        glm::vec3 targetPos = glm::vec3(mat[3]);
+
+        float distSq = glm::distance2(gripperPos, targetPos);
+        if (distSq < minDistSq)
+        {
+            minDistSq = distSq;
+            bestTarget = e;
+        }
+    });
+
+    // 3. 대상 부착
+    if (!bestTarget.is_valid())
+        return;
+
+    Entity target(bestTarget);
+
+    target.SetParent(m_GripperEntity);
+
+    // 잡는 순간 정확히 붙도록 초기화
+    target.SetLocalPosition(glm::vec3(0.0f));
+    target.SetLocalRotation(glm::vec3(0.0f));
+
+    auto& logic = m_GripperEntity.Get<GripperLogic>();
+    logic.attachedEntity = target;
+    logic.isGripping = true;
+}
 void ControllerSystemModule::RegisterObserver(flecs::world &world)
 {
     world.observer<const ControllerComponent>()
@@ -87,6 +157,49 @@ void ControllerSystemModule::RegisterObserver(flecs::world &world)
             }
         });
 }
+void ControllerSystemModule::Release()
+{
+    // 구현 생략 (필요 시 추가)
+    auto &m_GripperEntity = m_ServoEntities[4];
+    auto& logic = m_GripperEntity.Get<GripperLogic>();
+    Entity& attachedEntity = logic.attachedEntity;
+
+    if (!attachedEntity.IsValid())
+        return;
+
+    // 1. 현재 월드 행렬 추출
+    glm::vec3 worldPos(0.0f);
+    glm::vec3 worldRotEuler(0.0f);
+
+    if (attachedEntity.GetHandle().has<TransformMatrix, World>())
+    {
+        const TransformMatrix& worldMat =
+            attachedEntity.GetHandle().get<TransformMatrix, World>();
+
+        glm::vec3 scale, translation, skew;
+        glm::quat rotation;
+        glm::vec4 perspective;
+
+        glm::decompose(worldMat, scale, rotation, translation, skew, perspective);
+
+        worldPos = translation;
+        worldRotEuler = glm::eulerAngles(rotation);
+    }
+
+    // 2. 부모 관계 제거
+    attachedEntity.GetHandle().remove(
+        flecs::ChildOf,
+        m_GripperEntity.GetHandle()
+    );
+
+    // 3. 월드 좌표 → 로컬 좌표로 재설정
+    attachedEntity.SetLocalPosition(worldPos);
+    attachedEntity.SetLocalRotation(worldRotEuler);
+
+    // 4. 상태 초기화
+    attachedEntity = Entity();
+    logic.isGripping = false;
+}   
 
 // ------------------------------------------------------------------
 // 시스템 등록 (주행, 서보, 그리퍼 로직)
@@ -159,7 +272,6 @@ void ControllerSystemModule::RegisterSystem(flecs::world &world)
 
                 Entity joint = m_ServoEntities[id];
                 glm::vec3 axis = m_ServoConfigMap[id].axis;
-
                 float target = cmd.angle;
                 float current = m_ServoCurrentAngles[id];
                 float speed = cmd.speed; 
@@ -174,8 +286,23 @@ void ControllerSystemModule::RegisterSystem(flecs::world &world)
 
                 float rad = glm::radians(current);
                 joint.SetLocalRotation(axis * rad); 
+
+                // 그리퍼 로직 처리
+                if(id == 4) // Gripper ID
+                {
+                    auto& logic = joint.Get<GripperLogic>();
+                    if (current > 10.0f) // 임계값
+                    {
+                        if (!logic.isGripping)
+                            Grip();
+                    }
+                    else
+                    {
+                        if (logic.isGripping)
+                            Release();
+                    }
+                }
             }
         });
 
-    // 2. 그리퍼(집게) 로직 시스템 (G키 토글 + 디버깅)
 }

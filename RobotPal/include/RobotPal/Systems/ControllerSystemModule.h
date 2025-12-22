@@ -23,7 +23,8 @@ public:
 private:
     void RegisterObserver(flecs::world& world);
     void RegisterSystem(flecs::world& world);
-
+    void Grip();
+    void Release();
     // 재귀적으로 자식 이름을 모두 출력하는 디버그 함수
     void PrintHierarchy(Entity entity, int depth);
 
