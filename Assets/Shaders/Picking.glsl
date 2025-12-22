@@ -19,11 +19,11 @@ void main()
 precision highp float;
 precision highp int;
 
-layout(location = 0) out int o_EntityID;
+layout(location = 0) out ivec4 o_EntityID;
 
 uniform int u_EntityID;
-
 void main() 
 {
-    o_EntityID = u_EntityID;
+    // R 채널에만 ID를 쓰고 나머지는 0으로 채움
+    o_EntityID = ivec4(u_EntityID, 0, 0, 0);
 }

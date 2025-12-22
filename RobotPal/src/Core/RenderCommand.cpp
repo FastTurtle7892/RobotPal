@@ -44,9 +44,14 @@ void RenderCommand::ClearInteger(int value)
 
 int RenderCommand::ReadPixelInteger(int x, int y) 
 {
-    int pixelData = -1;
-    glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_INT, &pixelData);
-    return pixelData;
+    // [수정] 4채널 데이터를 받기 위해 배열 사용 (R, G, B, A)
+    int pixelData[4] = { -1, 0, 0, 0 };
+    
+    // [수정] GL_RGBA_INTEGER 포맷으로 읽기
+    glReadPixels(x, y, 1, 1, GL_RGBA_INTEGER, GL_INT, pixelData);
+    
+    // 첫 번째 값(R 채널)이 Entity ID임
+    return pixelData[0];
 }
 
 void RenderCommand::DrawIndexed(const std::shared_ptr<VertexArray> &vertexArray)

@@ -332,10 +332,12 @@ void Texture::CreateInternal() {
         internalFormat = GL_RGBA16F; dataFormat = GL_RGBA; dataType = GL_FLOAT;
     }
     else if (m_Format == TextureFormat::RED_INTEGER) {
-        internalFormat = GL_R32I;        // 32비트 정수 저장
-        dataFormat = GL_RED_INTEGER;     // 픽셀 데이터 포맷
-        dataType = GL_INT;               // 데이터 타입
-    } else if (m_Format == TextureFormat::DEPTH24_STENCIL8) {
+        // 호환성을 위해 RGBA 4채널 정수 포맷 사용
+        internalFormat = GL_RGBA32I;        
+        dataFormat = GL_RGBA_INTEGER;     
+        dataType = GL_INT;               
+    }
+    else if (m_Format == TextureFormat::DEPTH24_STENCIL8) {
         internalFormat = GL_DEPTH24_STENCIL8; dataFormat = GL_DEPTH_STENCIL; dataType = GL_UNSIGNED_INT_24_8;
     }
 
