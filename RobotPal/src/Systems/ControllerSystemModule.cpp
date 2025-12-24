@@ -236,33 +236,47 @@ void ControllerSystemModule::RegisterSystem(flecs::world &world)
 
             // (1) 주행 로직 (Dead Reckoning)
             if (m_HasLastDriveCmd) {
-                 float leftInput  = m_LastDriveCmd.left;
-                 float rightInput = m_LastDriveCmd.right;
-                 
-                 const float kMetersPerDegree = 0.000433f; 
-                 const float kTrackWidth      = 0.7f;      
-                 const float kSlipRatio       = 0.65f;     
-                 const float kMaxRPM  = 250.0f; 
-                 const float kAccel   = 5.0f;    
-
-                 float v_left_mps  = (leftInput  * kMaxRPM) * 6.0f * kMetersPerDegree;
-                 float v_right_mps = (rightInput * kMaxRPM) * 6.0f * kMetersPerDegree;
-
-                 float target_v = (v_left_mps + v_right_mps) * 0.5f;
-                 float target_w = ((v_right_mps - v_left_mps) / kTrackWidth) * kSlipRatio;
-
-                 m_CurrentV += (target_v - m_CurrentV) * kAccel * dt;
-                 m_CurrentW += (target_w - m_CurrentW) * kAccel * dt;
-
-                 if (std::abs(m_CurrentV) < 0.001f) m_CurrentV = 0.0f;
-                 if (std::abs(m_CurrentW) < 0.001f) m_CurrentW = 0.0f;
-
-                 glm::vec3 pos = m_Entity.GetLocalPosition();
-                 glm::vec3 rot = m_Entity.GetLocalRotation();
-
-                 MovementMath::CalculateNextStep(pos, rot, m_CurrentV, m_CurrentW, dt);
-                 m_Entity.SetLocalPosition(pos);
-                 m_Entity.SetLocalRotation(rot);
+                float leftInput  = m_LastDriveCmd.left;
+                float rightInput = m_LastDriveCmd.right;
+            
+                // --- [1] 물리 상수 설정 (측정값 기반 보정) ---
+                // 0.3 입력 시 2.4cm/s (= 0.024m/s)가 나오도록 설정
+                // 계산: 0.024 / 0.3 = 0.08
+                const float kLinearGain = 0.08f; 
+            
+                // 0.3 입력 시 24도/s (= 0.418879 rad/s)가 나오도록 설정
+                // 계산: (24 * PI / 180) / 0.3 = 1.39626...
+                const float kAngularGain = 1.3963f;
+            
+                const float kAccel = 5.0f; // 가속도 (반응 속도 조절용)
+            
+                // --- [2] 목표 속도 계산 ---
+                // 선속도: 좌우 모터의 평균값에 비례
+                float input_throttle = (leftInput + rightInput) * 0.5f;
+                float target_v = input_throttle * kLinearGain;
+            
+                // 각속도: 좌우 모터의 차이((R-L)/2)에 비례
+                // Jetbot 기준: 우측 모터가 더 빠르면 왼쪽(CCW, +각도)으로 회전한다고 가정
+                float input_steering = (rightInput - leftInput) * 0.5f;
+                float target_w = input_steering * kAngularGain; 
+            
+                // --- [3] 가감속(Smoothing) 적용 ---
+                m_CurrentV += (target_v - m_CurrentV) * kAccel * dt;
+                m_CurrentW += (target_w - m_CurrentW) * kAccel * dt;
+            
+                // 데드존 처리 (노이즈 방지)
+                if (std::abs(m_CurrentV) < 0.001f) m_CurrentV = 0.0f;
+                if (std::abs(m_CurrentW) < 0.001f) m_CurrentW = 0.0f;
+            
+                // --- [4] 위치/회전 업데이트 (MovementMath 연동) ---
+                glm::vec3 pos = m_Entity.GetLocalPosition();
+                glm::vec3 rot = m_Entity.GetLocalRotation();
+            
+                // 제공하신 MovementMath 헤더 함수 사용
+                MovementMath::CalculateNextStep(pos, rot, m_CurrentV, m_CurrentW, dt);
+            
+                m_Entity.SetLocalPosition(pos);
+                m_Entity.SetLocalRotation(rot);
             }
 
             // (2) 서보 제어 로직
