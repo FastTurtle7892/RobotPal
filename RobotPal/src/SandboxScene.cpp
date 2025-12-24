@@ -23,7 +23,8 @@
 
 static std::unique_ptr<SimController> g_Controller;
 static Entity prefabEntity;
-static float cam_W = 1632.f/2.f, cam_H = 1232.f/2.f;
+// static float cam_W = 1632.f/2.f, cam_H = 1232.f/2.f;
+static float cam_W = 224.f, cam_H = 224.f;
 std::shared_ptr<Framebuffer> camView;
 void SandboxScene::OnEnter()
 {    
@@ -112,8 +113,8 @@ void SandboxScene::OnUpdate(float dt)
     float v = 0.0f;
     float w = 0.0f;
     GLFWwindow* window = glfwGetCurrentContext();
-    float speed = 1.0f; 
-    float turn_speed = 2.5f;
+    float speed = 0.2f; 
+    float turn_speed = 1.25f;
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) v = speed;
     if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) v = -speed;
     if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) w = turn_speed;
