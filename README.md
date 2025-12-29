@@ -49,7 +49,7 @@ RobotPal was created to address these challenges. By moving the training and tes
 
 ### Pre-built Releases (Easiest Way)
 
-For the easiest access, you can download the latest pre-built version for your operating system from the **[Releases](https://github.com/Junwoo-Seo-1998/RobotPal/releases)** page. This allows you to run the application without building it from the source code.
+For the easiest access, you can download the latest pre-built version for your operating system from the **[Releases](https://github.com/FastTurtle7892/RobotPal/releases)** page. This allows you to run the application without building it from the source code.
 
 ### Build from Source
 
@@ -213,4 +213,5 @@ python -m http.server
 ## 라이선스
 
 이 프로젝트는 MIT 라이선스를 따릅니다. 자세한 내용은 `LICENSE` 파일을 참고하세요.
+
 
