@@ -214,7 +214,9 @@ if(EMSCRIPTEN)
     COMMAND ${CMAKE_COMMAND} -E copy
             "${CMAKE_SOURCE_DIR}/RobotPal-web/template.html"
             "${CMAKE_CURRENT_BINARY_DIR}/index.html"
-
+    COMMAND ${CMAKE_COMMAND} -E copy
+            "${CMAKE_SOURCE_DIR}/RobotPal-web/template.html"
+            "${CMAKE_CURRENT_BINARY_DIR}/RobotPal.html"
     COMMAND ${CMAKE_COMMAND} -E copy
            "${CMAKE_SOURCE_DIR}/RobotPal-web/coi-serviceworker.min.js"
            "${CMAKE_CURRENT_BINARY_DIR}/coi-serviceworker.min.js"
