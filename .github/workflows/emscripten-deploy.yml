@@ -31,7 +31,7 @@ jobs:
         with:
           name: RobotPalWeb
           path: ./RobotPalWeb
-          github-token: ${{ secrets.ROBOTPAL_PAT }}
+          github-token: ${{ secrets.JANG_ROBOTPA_PAT }}
           run-id: ${{ github.event.workflow_run.id }}
 
       - name: Display structure of downloaded files
