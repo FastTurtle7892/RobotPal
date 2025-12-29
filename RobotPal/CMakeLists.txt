@@ -209,11 +209,14 @@ if(EMSCRIPTEN)
 
     set_target_properties(RobotPal PROPERTIES SUFFIX ".html")
 
+    #
     add_custom_command(TARGET RobotPal
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
             "${CMAKE_SOURCE_DIR}/RobotPal-web/template.html"
             "${CMAKE_CURRENT_BINARY_DIR}/index.html"
+
+    # 수정된 부분
     COMMAND ${CMAKE_COMMAND} -E copy
             "${CMAKE_SOURCE_DIR}/RobotPal-web/template.html"
             "${CMAKE_CURRENT_BINARY_DIR}/RobotPal.html"
