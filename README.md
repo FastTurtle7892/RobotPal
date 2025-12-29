@@ -27,7 +27,7 @@ Inspired by simulators like Gazebo, RobotPal provides a space to freely experime
 
 You can try RobotPal instantly in your browser without any installation!
 
-**[>> Click here to launch the Live Demo <<](https://junwoo-seo-1998.github.io/RobotPal/)**
+**[>> Click here to launch the Live Demo <<](https://fastturtle7892.github.io/RobotPal/)**
 
 ## Motivation
 
@@ -213,5 +213,6 @@ python -m http.server
 ## 라이선스
 
 이 프로젝트는 MIT 라이선스를 따릅니다. 자세한 내용은 `LICENSE` 파일을 참고하세요.
+
 
 
