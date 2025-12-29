@@ -36,7 +36,9 @@ void SandboxScene::OnEnter()
 
     Entity ee = prefabEntity.FindChildByNameRecursive(prefabEntity.GetHandle(), "EE");
     if (ee.IsValid()) {
-        ee.Set<GripperLogic>({false, 0.025f,false, Entity()}); // 범위 1.5f
+        // ee.Set<GripperLogic>({false, 0.025f,false, Entity()}); // 범위 1.5f
+        // [수정 후] 0.2f ~ 0.3f 정도로 넉넉하게 변경
+        ee.Set<GripperLogic>({false, 0.25f, false, Entity()});
     // 위치 확인용 디버깅
         std::cout << "[Init] GripperLogic added to EE.\n";
     }   
@@ -47,7 +49,7 @@ void SandboxScene::OnEnter()
     auto boxEntity=CreateEntity("box");
     boxEntity.GetHandle().is_a(boxModel);
     boxEntity.Set<Grabbable>({});
-    boxEntity.SetLocalPosition(glm::vec3(0.0f, 0.125f, 0.0f));
+    boxEntity.SetLocalPosition(glm::vec3(0.0f, 0.01f, 0.0f));
     boxEntity.SetLocalRotation(glm::radians(glm::vec3(0.f, 0.f, 0.f)));
     
     std::cout << "[Init] Grabbable component added to box entity.\n";
